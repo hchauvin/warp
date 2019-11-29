@@ -1,0 +1,16 @@
+builds:
+  -
+    id: warp
+    main: ./cmd/warp/warp.go
+    binary: bin/warp
+    goos:
+      - linux
+      - darwin
+      - windows
+archives:
+  -
+    id: warp
+    builds:
+      - warp
+    format: binary
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"

@@ -1,0 +1,230 @@
+version: 2.1
+
+executors:
+  vs2019:
+    description: >
+      An executor preloaded with visual studios 2019 plus a number of other
+      development tools.
+    parameters:
+      version:
+        type: string
+        description: The image version to use when executing. Defaults to "201908-06"
+        default: "201908-06"
+      shell:
+        type: string
+        description: >
+          The shell to use.
+          Defaults to `powershell.exe -ExecutionPolicy Bypass`
+        default: powershell.exe -ExecutionPolicy Bypass
+    machine:
+      image: "windows-server-2019-vs2019:<< parameters.version >>"
+      resource_class: windows.medium
+      shell: << parameters.shell >>
+
+commands:
+  install_deps_linux:
+    description: Install dependencies on Linux
+    steps:
+      - run:
+          name: Kustomize
+          command: |
+            curl -L -f https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.4.0/kustomize_v3.4.0_linux_amd64.tar.gz | untar xf - > /usr/local/bin/kustomize
+            chmod +x /usr/local/bin/kustomize
+      - run:
+          name: Kubectl
+          command: |
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl
+            chmod +x ./kubectl
+            mv ./kubectl /usr/local/bin/kubectl
+            kubectl version
+      - run:
+          name: Ksync
+          command: curl https://ksync.github.io/gimme-that/gimme.sh | bash
+      - run:
+          name: BrowserSync
+          command: |
+            npm install -g browser-sync
+  install_deps_darwin:
+    description: Install dependencies on Mac OSX
+    steps:
+      - run:
+          name: Kustomize
+          command: |
+            curl -L -f https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.4.0/kustomize_v3.4.0_darwin_amd64.tar.gz | untar xf - > /usr/local/bin/kustomize
+            chmod +x /usr/local/bin/kustomize
+      - run:
+          name: Kubectl
+          command: brew install kubernetes-cli
+      - run:
+          name: Ksync
+          command: curl https://ksync.github.io/gimme-that/gimme.sh | bash
+      - run:
+          name: BrowserSync
+          command: |
+            npm install -g browser-sync
+  install_deps_windows:
+    description: Install dependencies on Windows
+    steps:
+      - run:
+          name: Kustomize
+          command: choco install kustomize
+      - run:
+          name: Kubectl
+          command: choco install kubernetes-cli
+      - run:
+          name: Ksync
+          command: |
+            $ErrorActionPreference = 'Stop';
+            $toolsDir     = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
+
+            # release version of ksync: https://github.com/ksync/ksync/releases
+            $version = '0.4.1'
+            # pattern for exe name
+            $exe_name = "ksync_$($version)_windows_amd64.exe"
+            # only 64bit url
+            $url = "https://github.com/kubernetes-sigs/kustomize/releases/download/v$($version)/$($exe_name)"
+
+            # use $ checksum [exe] -t=sha256
+            $version_checksum = '1e2d26ca9e24c20f4419485a2d0aa8c2e78edfeabac85ae00488d7fd1c7ad4c5'
+            $checksum_type = 'sha256'
+
+            # destination for exe
+            $fileLocation = join-path $toolsDir $exe_name
+
+            $getArgs = @{
+              packageName   = $env:ChocolateyPackageName
+              fileFullPath  = $fileLocation
+              url64bit      = $url
+              checksum64    = $checksum
+              checksumType64= $type
+            }
+
+            Get-ChocolateyWebFile @getArgs
+
+            $packageArgs = @{
+              packageName   = $env:ChocolateyPackageName
+              softwareName  = 'ksync*'
+              fileType      = 'exe'
+              silentArgs    = ""
+              validExitCodes= @(0)
+              file64        = $fileLocation
+              checksum64    = $checksum
+              checksumType64= $type
+              destination   = $toolsDir
+            }
+
+            Install-ChocolateyInstallPackage @packageArgs
+
+            $binargs = @{
+              name = 'ksync'
+              path = $fileLocation
+            }
+
+            Install-BinFile @binArgs
+      - run:
+          name: BrowserSync
+          command: |
+            npm install -g browser-sync
+  kubeconfig:
+    description: Set up the k8s config to access the test cluster on Linux and Mac OSX
+    steps:
+      - run: Set up k8s cluster access
+        command: |
+          echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+  kubeconfig_windows:
+    description: Set up the k8s config to access the test cluster on Windows
+    steps:
+      - run: Set up k8s cluster access
+        command: |
+          $Env:$KUBECONFIG_CONTENT | Out-File $HOME/.kube/config
+
+jobs:
+  test-linux:
+    docker:
+      - image: circleci/golang:1.13
+        environment:
+          MONGODB_URI: "mongodb://127.0.0.1:27017"
+      - image: circleci/mongo:4.2.1
+    steps:
+      - checkout
+      - install_deps_linux
+      - kubeconfig
+      - run:
+          name: Gofmt
+          command: |
+            badFormat=$(gofmt -l .)
+            if [ ! -z "$badFormat" ]; then
+              echo "ERROR: gofmt: bad format:\n$badFormat"
+              exit 1
+            fi
+      - run: go test -v ./...
+      - run:
+          name: Code coverage
+          command: |
+            go test -v -covermode=count -coverprofile=coverage.out ./...
+            go install github.com/mattn/goveralls
+            goveralls -coverprofile=coverage.out -service=circleci-ci -repotoken=$COVERALLS_TOKEN
+  test-darwin:
+    macos:
+      xcode: 9.3.0
+    steps:
+      - checkout
+      - install_deps_darwin
+      - kubeconfig
+      - run:
+          name: Install Go
+          command: |
+            GOLANG_VERSION=1.13.1
+            goRelArch=darwin-amd64
+            url="https://golang.org/dl/go${GOLANG_VERSION}.${goRelArch}.tar.gz"
+            curl -L $url | tar -C ~ -xzf -
+      - run:
+          name: Test
+          command: |
+            export SKIP_DOCKER_TESTS="1"
+            ~/go/bin/go test -v ./...
+  test-windows:
+    executor:
+      name: vs2019
+    steps:
+      - checkout
+      - install_deps_windows
+      - kubeconfig_windows
+      - run:
+          name: Test
+          command: |
+            $Env:SKIP_DOCKER_TESTS = "1"
+            $Env:PATH = "C:/Downloaded;$Env:PATH"
+            go test -v ./...
+  release:
+    docker:
+      - image: circleci/golang:1.13
+    steps:
+      - checkout
+      - run: curl -sL https://git.io/goreleaser | bash
+
+workflows:
+  main:
+    jobs:
+      - test-linux:
+          filters:
+            tags:
+              only: /^v.*/
+      - test-darwin:
+          filters:
+            tags:
+              only: /^v.*/
+      - test-windows:
+          filters:
+            tags:
+              only: /^v.*/
+      - release:
+          requires:
+            - test-linux
+            - test-darwin
+            - test-windows
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/

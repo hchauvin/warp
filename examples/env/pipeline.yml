@@ -1,0 +1,13 @@
+stack:
+  family: warp-env
+deploy:
+  kustomize:
+    path: env
+run:
+  - name: test
+    env:
+      - 'ENDPOINT=http://{{ k8sServiceAddress "default" "echo" 5678 }}'
+      - 'CONFIG_FOO={{ k8sConfigMapKey "default" "configMap" "foo" }}'
+      - 'SECRET_BAR={{ k8sSecretKey "default" "secrets" "bar" }}'
+    workingDir: env
+    command: ['go', 'run', 'test.go']

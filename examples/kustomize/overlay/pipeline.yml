@@ -1,0 +1,13 @@
+bases:
+- kustomize/base
+stack:
+  family: warp-kustomize-overlay
+deploy:
+  kustomize:
+    path: kustomize/overlay
+run:
+- name: test2
+  env:
+    - 'ENDPOINT=http://{{ serviceAddress "echo" 5678 }}'
+  workingDir: kustomize/overlay
+  command: ['go', 'run', 'test.go']

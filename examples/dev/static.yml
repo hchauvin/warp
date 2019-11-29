@@ -1,0 +1,43 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: static
+  labels:
+    warp.service: static
+spec:
+  ports:
+    - port: 8043
+      name: web
+  selector:
+    warp.service: static
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: static-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      warp.service: static
+  template:
+    metadata:
+      labels:
+        warp.service: static
+        version: v1
+    spec:
+      containers:
+        - name: echo
+          image: buildpack-deps # for tar, required by ksync
+          command: ['python3', '-m', 'http.server', '8083']
+          workingDir: /www
+          ports:
+            - containerPort: 8043  # web
+          livenessProbe:
+            httpGet:
+              path: /index.html
+              port: 8043
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 4

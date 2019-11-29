@@ -1,0 +1,9 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: secrets
+  labels:
+    warp.name: configMap
+data:
+  foo: __foo__

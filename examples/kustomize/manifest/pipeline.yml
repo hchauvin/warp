@@ -1,0 +1,7 @@
+bases:
+- kustomize/base
+stack:
+  family: warp-kustomize-manifest
+deploy:
+  kustomize:
+    path: kustomize/manifest

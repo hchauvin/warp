@@ -1,0 +1,8 @@
+bases:
+  - container/registry
+stack:
+  family: warp-container-label
+deploy:
+  container:
+    label:
+      - warp.foo=${BAR}
