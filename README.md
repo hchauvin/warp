@@ -1,6 +1,7 @@
 # warp: Yet another deployment wrapper 🚀
 
 [![CircleCI](https://circleci.com/gh/hchauvin/warp.svg?style=svg)](https://circleci.com/gh/hchauvin/warp) [![GoDoc](https://godoc.org/github.com/hchauvin/warp?status.svg)](https://godoc.org/github.com/hchauvin/warp) [![Coverage Status](https://coveralls.io/repos/github/hchauvin/warp/badge.svg?branch=master&t=2W0xju)](https://coveralls.io/github/hchauvin/warp?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/hchauvin/warp)](https://goreportcard.com/report/github.com/hchauvin/warp) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fhchauvin%2Fwarp.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fhchauvin%2Fwarp?ref=badge_shield)
 
 `warp` is yet another command-line interface for deploying Kubernetes stacks.  The approach is very similar to
 [Skaffold](https://github.com/GoogleContainerTools/skaffold), but `warp` is specifically
@@ -77,3 +78,5 @@ It is continuously tested on Linux, Mac OSX, and Windows.
 ## License
 
 `warp` is licensed under [The MIT License](./LICENSE).
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fhchauvin%2Fwarp.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fhchauvin%2Fwarp?ref=badge_large)
