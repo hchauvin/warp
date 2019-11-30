@@ -3,9 +3,9 @@ module github.com/hchauvin/warp
 go 1.13
 
 require (
-	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
+	github.com/Masterminds/sprig/v3 v3.0.0
 	github.com/avast/retry-go v2.4.3+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
@@ -17,7 +17,6 @@ require (
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
-	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/pelletier/go-toml v1.6.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/spf13/afero v1.2.2
