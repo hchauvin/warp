@@ -10,9 +10,6 @@ import (
 	"time"
 )
 
-// FIXME
-const skipTest = true
-
 func main() {
 	if err := run(); err != nil {
 		fmt.Printf("ERROR: %v\n", err)
@@ -21,10 +18,6 @@ func main() {
 }
 
 func run() error {
-	if skipTest {
-		return nil
-	}
-
 	address := os.Getenv("ADDRESS")
 	if address == "" {
 		return fmt.Errorf("expected ADDRESS env var")
