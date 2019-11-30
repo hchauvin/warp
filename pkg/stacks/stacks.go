@@ -63,7 +63,11 @@ func Exec(
 		return fmt.Errorf("deploy step failed: %v", err)
 	}
 
-	ports := k8s.NewPorts(cfg)
+	clientset, err := k8s.NewClient()
+	if err != nil {
+		return err
+	}
+	ports := k8s.NewPorts(cfg, clientset)
 	defer ports.CancelForwarding()
 
 	if execCfg.Dev || execCfg.Tail {

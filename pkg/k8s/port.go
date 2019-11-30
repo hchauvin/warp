@@ -4,13 +4,15 @@ package k8s
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/proc"
 	"github.com/phayes/freeport"
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"sync"
 	"time"
 )
@@ -19,10 +21,11 @@ const logDomain = "k8s"
 
 // Ports is a "singleton" to pass around port forwarding information.  This
 // singleton keeps track of all the port forwarding to 1) avoid forwarding
-// ports in duplicat, 2) provide a single function to cancel all the port
+// ports in duplicate, 2) provide a single function to cancel all the port
 // forwarding.
 type Ports struct {
 	cfg              *config.Config
+	clientset        *kubernetes.Clientset
 	forwardg         *errgroup.Group
 	gctx             context.Context
 	cancelForwarding context.CancelFunc
@@ -31,12 +34,13 @@ type Ports struct {
 }
 
 // NewPorts creates the Ports singleton.
-func NewPorts(cfg *config.Config) *Ports {
+func NewPorts(cfg *config.Config, clientset *kubernetes.Clientset) *Ports {
 	ctx, cancelForwarding := context.WithCancel(context.Background())
 	forwardg, gctx := errgroup.WithContext(ctx)
 	forwarded := make(map[string]interface{})
 	return &Ports{
 		cfg,
+		clientset,
 		forwardg,
 		gctx,
 		cancelForwarding,
@@ -57,6 +61,10 @@ type ServiceSpec struct {
 
 	// Labels is a Kubernetes selector.
 	Labels string
+}
+
+func (s ServiceSpec) String() string {
+	return s.Namespace + "|" + s.Labels
 }
 
 // Port gives a random local port to which a remote port is forwarded.
@@ -117,38 +125,54 @@ func (ports *Ports) doPodPortForward(service ServiceSpec, localPort, exposedTCPP
 		// of a rolling update.
 		time.Sleep(3 * time.Second)
 		for {
-			// Let's get the full name of the service from the selector
-			out, err := proc.GracefulCommandContext(
-				ports.gctx, kubectlPath, "get",
-				"--namespace", service.Namespace, "-l", service.Labels, "-o=json", "service").Output()
+			// Let's get the endpoints for the service
+			endpoints, err := ports.getEndpoints(service)
 			if err != nil {
-				return err
-			}
+				ports.cfg.Logger().Info(logDomain, "port-forward: cannot get endpoints for service %s: %v", service, err)
+			} else {
+				var targetRef *corev1.ObjectReference
+				for _, endpoint := range endpoints {
+					portFound := false
+					for _, port := range endpoint.Ports {
+						if port.Port == int32(exposedTCPPort) || port.Protocol == corev1.ProtocolTCP {
+							portFound = true
+							break
+						}
+					}
+					if !portFound {
+						continue
+					}
 
-			var serviceInfo map[string]interface{}
-			if err := json.Unmarshal(out, &serviceInfo); err != nil {
-				return fmt.Errorf("cannot unmarshal output of 'kubectl get': %v; full output: <<< %s >>>", err, out)
-			}
-			serviceName, err := parseServiceInfo(serviceInfo)
-			if err != nil {
-				ports.cfg.Logger().Info(logDomain, "port-fowarding: cannot process output of 'kubectl get': %v; full output: <<< %s >>>", err, out)
-				continue
-			}
+					if len(endpoint.Addresses) == 0 {
+						continue
+					}
 
-			cmd := proc.GracefulCommandContext(ports.gctx, kubectlPath,
-				"port-forward",
-				"--namespace", service.Namespace,
-				"service/"+serviceName,
-				fmt.Sprintf("%d:%d", localPort, exposedTCPPort),
-			)
-			ports.cfg.Logger().Pipe(logDomain+":port-forward:ns="+service.Namespace+";l="+service.Labels, cmd)
-			if err := cmd.Run(); err != nil {
-				if err == ports.gctx.Err() {
-					return err
+					targetRef = endpoint.Addresses[0].TargetRef
+					if targetRef.Kind != "Pod" {
+						return fmt.Errorf("expected 'Pod' kind for target ref, got '%s'", targetRef.Kind)
+					}
 				}
-				ports.cfg.Logger().Info(logDomain, "port-forward: %v", err)
+
+				if targetRef == nil {
+					ports.cfg.Logger().Info(logDomain, "port-forward: no ready endpoint for service %s and TCP port %d", service, exposedTCPPort)
+				} else {
+					// TODO: Programmatic port forward
+					cmd := proc.GracefulCommandContext(ports.gctx, kubectlPath,
+						"port-forward",
+						"--namespace", targetRef.Namespace,
+						"pod/"+targetRef.Name,
+						fmt.Sprintf("%d:%d", localPort, exposedTCPPort),
+					)
+					ports.cfg.Logger().Pipe(logDomain+":port-forward:ns="+service.Namespace+";l="+service.Labels, cmd)
+					if err := cmd.Run(); err != nil {
+						if err == ports.gctx.Err() {
+							return err
+						}
+						ports.cfg.Logger().Info(logDomain, "port-forward: %v", err)
+					}
+				}
 			}
-			return nil
+			time.Sleep(2 * time.Second)
 		}
 	})
 
@@ -173,20 +197,19 @@ func (ports *Ports) memoize(f func() (interface{}, error), fname string, args ..
 	return ans, nil
 }
 
-func parseServiceInfo(serviceInfo map[string]interface{}) (serviceName string, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
-		}
-	}()
-
-	items := serviceInfo["items"].([]interface{})
-	if len(items) == 0 {
-		return "", errors.New("found no service match")
-	} else if len(items) > 1 {
-		return "", errors.New("found multiple service matches")
+func (ports *Ports) getEndpoints(service ServiceSpec) ([]corev1.EndpointSubset, error) {
+	lst, err := ports.clientset.CoreV1().
+		Endpoints(service.Namespace).
+		List(metav1.ListOptions{LabelSelector: service.Labels})
+	if err != nil {
+		return nil, err
 	}
 
-	serviceName = items[0].(map[string]interface{})["metadata"].(map[string]interface{})["name"].(string)
-	return serviceName, nil
+	if len(lst.Items) == 0 {
+		return nil, errors.New("found no endpoint match")
+	} else if len(lst.Items) > 1 {
+		return nil, errors.New("found multiple endpoint matches")
+	}
+
+	return lst.Items[0].Subsets, nil
 }
