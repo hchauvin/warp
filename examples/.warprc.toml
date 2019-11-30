@@ -1,0 +1,2 @@
+NameManagerURL = "{{ env "NAME_MANAGER_URL" }}"
+OutputRoot = ".warp"

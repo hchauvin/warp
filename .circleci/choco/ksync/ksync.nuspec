@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>ksync</id>
+    <version>0.4.1</version>
+    <title>ksync (Install)</title>
+    <authors>The ksync authors</authors>
+    <projectUrl>https://github.com/ksync/ksync</projectUrl>
+    <licenseUrl>https://github.com/ksync/ksync/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/ksync/ksync</projectSourceUrl>
+    <summary>Sync files between your local system and a kubernetes cluster.</summary>
+    <description>ksync speeds up developers who build applications for Kubernetes. It transparently updates containers running on the cluster from your local checkout. This enables developers to use their favorite IDEs, such as Atom or Sublime Text to work from inside a cluster instead of from outside it. There is no reason to wait minutes to test code changes when you can see the results in seconds.</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

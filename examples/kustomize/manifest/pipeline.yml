@@ -1,0 +1,9 @@
+bases:
+- kustomize/base
+stack:
+  family: warp-kustomize-manifest
+deploy:
+  container:
+    manifest: kustomize/manifest/container-manifest.json
+  kustomize:
+    path: kustomize/manifest

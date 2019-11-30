@@ -1,0 +1,11 @@
+stack:
+  family: warp-kustomize-base
+deploy:
+  kustomize:
+    path: kustomize/base
+commands:
+- name: test
+  env:
+    - 'ENDPOINT=http://{{ serviceAddress "echo" 5678 }}'
+  workingDir: kustomize/base
+  command: ['go', 'run', 'test.go']

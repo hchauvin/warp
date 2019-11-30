@@ -1,0 +1,5 @@
+resources:
+  - configMap.yml
+  - echo.yml
+  - secrets.yml
+namePrefix: hello- # To show that warp.name is used, and not metadata.name

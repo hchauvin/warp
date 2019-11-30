@@ -1,0 +1,7 @@
+bases:
+  - container/base
+stack:
+  family: warp-container-registry
+deploy:
+  container:
+    push: ${CONTAINER_REGISTRY}

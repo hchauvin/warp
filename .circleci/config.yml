@@ -1,0 +1,277 @@
+version: 2.1
+
+executors:
+  vs2019:
+    description: >
+      An executor preloaded with visual studios 2019 plus a number of other
+      development tools.
+    parameters:
+      version:
+        type: string
+        description: The image version to use when executing. Defaults to "201908-06"
+        default: "201908-06"
+      shell:
+        type: string
+        description: >
+          The shell to use.
+          Defaults to `powershell.exe -ExecutionPolicy Bypass`
+        default: powershell.exe -ExecutionPolicy Bypass
+    machine:
+      image: "windows-server-2019-vs2019:<< parameters.version >>"
+      resource_class: windows.medium
+      shell: << parameters.shell >>
+
+commands:
+  install_go:
+    description: Install Go on Linux or Mac OSX
+    steps:
+      - run:
+          name: Go
+          command: |
+            npm install -g browser-sync
+            export GOLANG_VERSION="1.13.4"
+
+            if [[ "$(uname)" == "Darwin" ]]; then
+            PLATFORM="darwin"
+            elif [[ "$(uname)" == "Linux" ]]; then
+            PLATFORM="linux"
+            else
+            echo &>2 "ERROR: unrecognized platform '$(uname)'"
+            exit 1
+            fi
+
+            url="https://golang.org/dl/go${GOLANG_VERSION}.${PLATFORM}-amd64.tar.gz"
+            curl -L -f "$url" > go.tgz
+            tar -C ~ -xzf go.tgz
+            rm go.tgz
+
+            export PATH="~/go/bin:$PATH";
+            export GOPATH=~/go
+
+            go version
+
+            echo "export PATH=~/go/bin:$PATH" >> $BASH_ENV
+            echo "export GOPATH=~/go" >> $BASH_ENV
+  install_deps_linux:
+    description: Install dependencies on Linux
+    steps:
+      - run:
+          name: Kustomize
+          command: |
+            curl -L -f https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.4.0/kustomize_v3.4.0_linux_amd64.tar.gz | tar xzf - > kustomize
+            chmod +x ./kustomize
+            sudo mv ./kustomize /usr/local/bin
+      - run:
+          name: Kubectl
+          command: |
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+      - run:
+          name: Ksync
+          command: sudo bash -c "curl https://ksync.github.io/gimme-that/gimme.sh | bash"
+      - run:
+          name: Install NodeJs
+          command: |
+            export NVM_DIR="/opt/circleci/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.0/install.sh | bash
+            nvm install 10.16.3
+            nvm alias default 10.16.3
+
+            curl -o- -L https://yarnpkg.com/install.sh | bash -s -- --version 1.19.1
+
+            echo 'export NVM_DIR="/opt/circleci/.nvm"' >> $BASH_ENV
+            echo "[ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"" >> $BASH_ENV
+
+            echo "export PATH=\"$HOME/.yarn/bin:$HOME/.config/yarn/global/node_modules/.bin:$PATH\"" >> $BASH_ENV
+      - install_go
+  install_deps_darwin:
+    description: Install dependencies on Mac OSX
+    steps:
+      - run:
+          name: Kustomize
+          command: |
+            curl -L -f https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.4.0/kustomize_v3.4.0_darwin_amd64.tar.gz | tar xzf - > kustomize
+            chmod +x ./kustomize
+            sudo mv ./kustomize /usr/local/bin
+      - run:
+          name: Kubectl
+          command: |
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/darwin/amd64/kubectl
+            chmod +x ./kubectl
+            sudo mv ./kubectl /usr/local/bin/kubectl
+      - run:
+          name: Ksync
+          command: sudo bash -c "curl https://ksync.github.io/gimme-that/gimme.sh | bash"
+      - run:
+          name: BrowserSync
+          command: |
+            npm install -g browser-sync
+      - install_go
+  install_deps_windows:
+    description: Install dependencies on Windows
+    steps:
+      - run:
+          name: Kustomize
+          command: |
+            Set-Location .circleci\choco\kustomize
+            choco pack
+            choco install kustomize -dv -s .
+      - run:
+          name: Kubectl
+          command: |
+            Set-Location .circleci\choco\kubernetes-cli
+            choco install kubernetes-cli -dv -s .
+      - run:
+          name: Ksync
+          command: |
+            Set-Location .circleci\choco\ksync
+            choco pack
+            choco install ksync -dv -s .
+      - run:
+          name: BrowserSync
+          command: |
+            npm install -g browser-sync
+  kubeconfig_linux:
+    description: Set up the k8s config to access the test cluster on Linux
+    steps:
+      - run:
+          name: Set up Docker registry credentials
+          command: |
+            if [ "$(uname)" != "Darwin" ]; then
+              docker login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY
+            fi
+      - run:
+          name: Set up k8s cluster access
+          command: |
+            mkdir -p ~/.kube
+            echo "$KUBECONFIG_CONTENT" | base64 -d > ~/.kube/config
+            kubectl version
+  kubeconfig_darwin:
+    description: Set up the k8s config to access the test cluster on Mac OSX
+    steps:
+      - run:
+          name: Set up Docker registry credentials
+          command: |
+            if [ "$(uname)" != "Darwin" ]; then
+              docker login -u $CONTAINER_REGISTRY_USERNAME -p $CONTAINER_REGISTRY_PASSWORD $CONTAINER_REGISTRY
+            fi
+      - run:
+          name: Set up k8s cluster access
+          command: |
+            mkdir -p ~/.kube
+            echo "$KUBECONFIG_CONTENT" | base64 -D > ~/.kube/config
+            kubectl version
+  kubeconfig_windows:
+    description: Set up the k8s config to access the test cluster on Windows
+    steps:
+      - run:
+          name: Set up Docker registry credentials
+          command: docker login -u $Env:CONTAINER_REGISTRY_USERNAME -p $Env:CONTAINER_REGISTRY_PASSWORD $Env:CONTAINER_REGISTRY
+      - run:
+          name: Set up k8s cluster access
+          command: |
+            New-Item -ItemType Directory -Force -Path $HOME/.kube
+            $Content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Env:KUBECONFIG_CONTENT))
+            $Content | Out-File $HOME/.kube/config
+            kubectl version
+
+jobs:
+  test-linux:
+    machine: true
+    resource_class: large # 4 vCPUs
+    steps:
+      - checkout
+      - install_deps_linux
+      - kubeconfig_linux
+      - run:
+          name: Gofmt
+          command: |
+            badFormat=$(gofmt -l .)
+            if [ ! -z "$badFormat" ]; then
+              echo "ERROR: gofmt: bad format:\n$badFormat"
+              exit 1
+            fi
+      - run: ksync init
+      - run: go test -v ./...
+      - run:
+          name: Code coverage
+          command: |
+            go test -v -covermode=count -coverprofile=coverage.out ./...
+            go install github.com/mattn/goveralls
+            goveralls -coverprofile=coverage.out -service=circleci-ci -repotoken=$COVERALLS_TOKEN
+  test-darwin:
+    macos:
+      xcode: 9.3.0
+    steps:
+      - checkout
+      - install_deps_darwin
+      - kubeconfig_darwin
+      - run:
+          name: Install Go
+          command: |
+            GOLANG_VERSION=1.13.1
+            goRelArch=darwin-amd64
+            url="https://golang.org/dl/go${GOLANG_VERSION}.${goRelArch}.tar.gz"
+            curl -L $url | tar -C ~ -xzf -
+      - run: ksync init
+      - run:
+          name: Test
+          command: |
+            export SKIP_DOCKER_TESTS="1"
+            ~/go/bin/go test -v ./...
+  test-windows:
+    executor:
+      name: vs2019
+    steps:
+      - checkout
+      - install_deps_windows
+      - kubeconfig_windows
+      - run: ksync init
+      - run:
+          name: Test
+          command: |
+            Get-Process
+            $Env:SKIP_DOCKER_TESTS = "1"
+            go test -v ./...
+            Get-Process
+            taskkill /F /IM kubectl.exe /T
+            taskkill /F /IM kubectl /T
+            taskkill /F /IM syncthing.exe /T
+            taskkill /F /IM syncthing /T
+            taskkill /F /IM ksync /T
+            taskkill /F /IM ksync_windows_amd64 /T
+            Get-Process
+  release:
+    docker:
+      - image: circleci/golang:1.13
+    steps:
+      - checkout
+      - run: curl -sL https://git.io/goreleaser | bash
+
+workflows:
+  main:
+    jobs:
+      - test-linux:
+          filters:
+            tags:
+              only: /^v.*/
+      - test-darwin:
+          filters:
+            tags:
+              only: /^v.*/
+      - test-windows:
+          filters:
+            tags:
+              only: /^v.*/
+      - release:
+          requires:
+            - test-linux
+            - test-darwin
+            - test-windows
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/

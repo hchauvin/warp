@@ -1,0 +1,5 @@
+{
+  "foobar": {
+    "ref": "hashicorp/http-echo"
+  }
+}

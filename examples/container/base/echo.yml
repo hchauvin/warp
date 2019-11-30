@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+  labels:
+    warp.service: echo
+spec:
+  ports:
+    - port: 5678
+      name: web
+  selector:
+    warp.service: echo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      warp.service: echo
+  template:
+    metadata:
+      labels:
+        warp.service: echo
+        version: v1
+    spec:
+      containers:
+        - name: echo
+          image: hello
+          ports:
+            - containerPort: 5678  # web
+          args: ['-text=Hello, world!']
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5678
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            failureThreshold: 4

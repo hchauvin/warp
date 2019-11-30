@@ -1,0 +1,11 @@
+deploy:
+  container:
+    manifest: container/base/container-manifest.json
+  kustomize:
+    path: container/base
+commands:
+  - name: test
+    workingDir: container/base
+    env:
+      - 'ENDPOINT=http://{{ serviceAddress "echo" 5678 }}'
+    command: ['go', 'run', 'test.go']

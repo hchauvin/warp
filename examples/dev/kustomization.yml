@@ -1,0 +1,6 @@
+resources:
+  - static.yml
+configMapGenerator:
+  - name: content
+    files:
+      - index.html

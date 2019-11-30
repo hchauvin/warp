@@ -1,0 +1,35 @@
+stack:
+  family: warp-dev
+deploy:
+  kustomize:
+    path: dev
+dev:
+  ksync:
+    - name: static
+      selector: warp.service=static
+      local: dev/www
+      remote: /www
+      # We do not need to reload the remote container on file update
+      disableReloading: true
+  # Other ksync for the other frontends
+  browserSync:
+    - name: static
+      localPort: 10001
+      k8sProxy:
+        selector: warp.service=static
+        remotePort: 8043
+      config:
+        reloadDelay: 800 # ms
+      paths:
+        - dev/www
+  portForward:
+    - name: static
+      selector: warp.service=static
+      localPort: 10002
+      remotePort: 8043
+commands:
+  - name: test
+    workingDir: dev
+    env:
+      - 'ADDRESS={{ serviceAddress "static" 8043 }}'
+    command: ['go', 'run', 'test.go']
