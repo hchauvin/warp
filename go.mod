@@ -8,6 +8,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.0.0
 	github.com/avast/retry-go v2.4.3+incompatible
 	github.com/fatih/color v1.7.0
+	github.com/go-playground/validator v9.30.2+incompatible
 	github.com/go-playground/validator/v10 v10.0.1
 	github.com/hchauvin/name_manager v0.2.0
 	github.com/huandu/xstrings v1.2.1 // indirect
@@ -24,7 +25,7 @@ require (
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.7
 	k8s.io/api v0.0.0-20191121015604-11707872ac1c
 	k8s.io/apimachinery v0.0.0-20191123233150-4c4803ed55e3
 	k8s.io/client-go v0.0.0-20191114101535-6c5935290e33
