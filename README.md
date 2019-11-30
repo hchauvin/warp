@@ -77,3 +77,5 @@ It is continuously tested on Linux, Mac OSX, and Windows.
 ## License
 
 `warp` is licensed under [The MIT License](./LICENSE).
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhchauvin%2Fwarp.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhchauvin%2Fwarp?ref=badge_large)
