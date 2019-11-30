@@ -25,7 +25,7 @@ const logDomain = "k8s"
 // forwarding.
 type Ports struct {
 	cfg              *config.Config
-	clientset *kubernetes.Clientset
+	clientset        *kubernetes.Clientset
 	forwardg         *errgroup.Group
 	gctx             context.Context
 	cancelForwarding context.CancelFunc
