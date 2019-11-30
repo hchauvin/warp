@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/hchauvin/warp/pkg/warp"
 	"github.com/urfave/cli"
@@ -98,24 +99,18 @@ func main() {
 				})
 			},
 		},
-		/*{
-			Name: "gc",
-			Usage: "Garbage collect stacks, either from one family or all the families",
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name: "all",
-					Usage: "Removes all the stacks, even the ones that are currently in use",
-				},
-			},
-			Action: func(c *cli.Context) error{
-				return warp.Gc(&warp.GcCfg{
-					WorkingDir:   c.GlobalString("cwd"),
-					ConfigPath:   c.GlobalString("config"),
-					Family: c.Args().First(),
-					All:          c.Bool("all"),
+		{
+			Name:      "gc",
+			Usage:     "Garbage collect stacks, either from one family or all the families",
+			ArgsUsage: "<family>",
+			Action: func(c *cli.Context) error {
+				return warp.Gc(context.Background(), &warp.GcCfg{
+					WorkingDir: c.GlobalString("cwd"),
+					ConfigPath: c.GlobalString("config"),
+					Family:     c.Args().First(),
 				})
 			},
-		},*/
+		},
 	}
 
 	err := app.Run(os.Args)
