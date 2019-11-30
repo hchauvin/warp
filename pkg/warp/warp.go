@@ -6,10 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hchauvin/name_manager/pkg/name_manager"
 	"github.com/hchauvin/warp/pkg/config"
+	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/stacks"
+	"github.com/hchauvin/warp/pkg/stacks/names"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -166,14 +170,13 @@ func Rm(rmCfg *RmCfg) error {
 	return nil
 }
 
-/*type GcCfg struct {
+type GcCfg struct {
 	WorkingDir string
 	ConfigPath string
-	Family string
-	All bool
+	Family     string
 }
 
-func Gc(gcCfg *GcCfg) error {
+func Gc(ctx context.Context, gcCfg *GcCfg) error {
 	cfg, err := readConfig(gcCfg.WorkingDir, gcCfg.ConfigPath)
 	if err != nil {
 		return err
@@ -183,13 +186,39 @@ func Gc(gcCfg *GcCfg) error {
 	if err != nil {
 		return fmt.Errorf("cannot create name manager: %v", err)
 	}
-	families, err := listFamilyNames(nameManager)
+	nameList, err := nameManager.List()
+
 	if err != nil {
 		return err
 	}
 
+	sem := semaphore.NewWeighted(10) // 10 is a sensible default
+	g, ctx := errgroup.WithContext(ctx)
+	for _, name := range nameList {
+		if gcCfg.Family != "" && name.Family != "" {
+			continue
+		}
+		if !name.Free {
+			continue
+		}
+		if err := sem.Acquire(ctx, 1); err != nil {
+			return err
+		}
+		name := name
+		g.Go(func() error {
+			defer sem.Release(1)
 
-}*/
+			if err := nameManager.TryAcquire(name.Family, name.Name); err != nil {
+				return nil // Cannot acquire, skip garbage collection
+			}
+			defer nameManager.Release(name.Family, name.Name)
+
+			return k8s.Gc(ctx, cfg, names.Name{Family: name.Family, ShortName: name.Name})
+		})
+	}
+
+	return g.Wait()
+}
 
 func readConfig(workingDir, configPath string) (*config.Config, error) {
 	fullPath := filepath.Join(workingDir, configPath)
