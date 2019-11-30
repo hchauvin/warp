@@ -53,6 +53,71 @@ func TestParseContainerManifest(t *testing.T) {
 	assert.EqualValues(t, &pipelineWithContainerManifest, p)
 }
 
+func TestParseInvalidContainerManifest(t *testing.T) {
+	cfg := &config.Config{WorkspaceDir: "/workspace"}
+
+	fs := afero.NewMemMapFs()
+	err := afero.WriteFile(fs, "/workspace/folder/pipeline.yml", pipelineWithContainerManifestBytes, 0666)
+	assert.NoError(t, err)
+	err = afero.WriteFile(fs, "/workspace/container/manifest.json", invalidContainerManifestBytes, 0666)
+	assert.NoError(t, err)
+
+	_, err = ReadFs(cfg, "folder/pipeline.yml", fs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot parse container manifest")
+}
+
+func TestCycle(t *testing.T) {
+	var base = []byte(`
+bases: ['overlay']
+stack:
+  family: foo`)
+	var overlay = []byte(`
+bases: ['base']
+`)
+
+	cfg := &config.Config{WorkspaceDir: "/workspace"}
+
+	fs := afero.NewMemMapFs()
+	err := afero.WriteFile(fs, "/workspace/base/pipeline.yml", base, 0666)
+	assert.NoError(t, err)
+	err = afero.WriteFile(fs, "/workspace/overlay/pipeline.yml", overlay, 0666)
+	assert.NoError(t, err)
+
+	_, err = ReadFs(cfg, "overlay", fs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cycle detected")
+}
+
+func TestPipelineFileNotExist(t *testing.T) {
+	cfg := &config.Config{WorkspaceDir: "/workspace"}
+	fs := afero.NewMemMapFs()
+
+	_, err := ReadFs(cfg, "folder/pipeline.yml", fs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot read pipeline file")
+}
+
+func TestInvalidPipeline(t *testing.T) {
+	var pipeline = []byte(`
+stack:
+  family: foo
+dev:
+  portForward:
+  - {}
+`)
+
+	cfg := &config.Config{WorkspaceDir: "/workspace"}
+
+	fs := afero.NewMemMapFs()
+	err := afero.WriteFile(fs, "/workspace/base/pipeline.yml", pipeline, 0666)
+	assert.NoError(t, err)
+
+	_, err = ReadFs(cfg, "base/pipeline.yml", fs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid pipeline config")
+}
+
 var onePipelineBytes = []byte(`
 stack:
   family: foo
@@ -106,6 +171,10 @@ var containerManifestBytes = []byte(`
     "ref": "replacement"
   }
 }`)
+
+var invalidContainerManifestBytes = []byte(`
+__invalid__
+`)
 
 var pipelineWithContainerManifest = Pipeline{
 	Path: filepath.FromSlash("/workspace/folder/pipeline.yml"),

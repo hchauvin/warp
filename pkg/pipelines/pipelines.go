@@ -30,7 +30,7 @@ type Pipeline struct {
 	// are used to spawn processes that can access the stack, with
 	// port forwarding and other mechanisms, between the setup and
 	// the tear down of the stack.
-	Commands []Command `yaml:"commands,omitempty" patchStrategy:"merge" patchMergeKey:"names"`
+	Commands []Command `yaml:"commands,omitempty" patchStrategy:"merge" patchMergeKey:"names" validate:"dive"`
 
 	// Path is the absolute path to the pipeline definition.  It is
 	// resolved by Read.
@@ -119,14 +119,14 @@ type Kustomize struct {
 // the tear down of the stack.
 type Command struct {
 	// Name is the name of the run configuration.
-	Name string `yaml:"name" validate:"required,alphanum"`
+	Name string `yaml:"name" validate:"required,name"`
 
 	// Description describes the run configuration.
 	Description string `yaml:"description,omitempty"`
 
 	// Tags are arbitrary tags associated with the run configuration.
 	// They can be used to organize run configurations.
-	Tags []string `yaml:"tags" validate:"alphanum"`
+	Tags []string `yaml:"tags" validate:"name"`
 
 	// WorkingDir is the working directory where to execute the command,
 	// relative to the workspace root (see config.Config.WorkspaceDir).
@@ -148,13 +148,13 @@ type Command struct {
 // during local development or debugging.
 type Dev struct {
 	// Ksync lists ksync configurations.
-	Ksync []Ksync `yaml:"ksync,omitempty" patchStrategy:"merge" patchMergeKey:"names"`
+	Ksync []Ksync `yaml:"ksync,omitempty" patchStrategy:"merge" patchMergeKey:"names" validate:"dive"`
 
 	// BrowserSync lists browser-sync configurations.
-	BrowserSync []BrowserSync `yaml:"browserSync,omitempty" patchStrategy:"merge" patchMergeKey:"names"`
+	BrowserSync []BrowserSync `yaml:"browserSync,omitempty" patchStrategy:"merge" patchMergeKey:"names" validate:"dive"`
 
 	// PortForward lists port forwarding configurations.
-	PortForward []PortForward `yaml:"portForward,omitempty" patchStrategy:"merge" patchMergeKey:"names"`
+	PortForward []PortForward `yaml:"portForward,omitempty" patchStrategy:"merge" patchMergeKey:"names" validate:"dive"`
 }
 
 // Ksync is a dev tool to synchronize local files (such as source files) and the
@@ -166,7 +166,7 @@ type Dev struct {
 // Ksync is a tiny wrapper on top of the popular https://github.com/ksync/ksync.
 type Ksync struct {
 	// Name is the name of the ksync configuration.
-	Name string `yaml:"name" validate:"required,alphanum"`
+	Name string `yaml:"name" validate:"required,name"`
 
 	// Selector is a Kubernetes selector to select the pods to synchronize.
 	Selector string `yaml:"selector" validate:"required"`
@@ -203,7 +203,7 @@ type Ksync struct {
 // BrowserSync is a tiny wrapper on top of the popular https://www.browsersync.io/.
 type BrowserSync struct {
 	// Name is the name of the browser-sync configuration.
-	Name string `yaml:"name" validate:"required,alphanum"`
+	Name string `yaml:"name" validate:"required,name"`
 
 	// LocalPort is the local port the website can be accessed to, using a browser.
 	LocalPort int `yaml:"localPort" validate:"min=1"`
@@ -238,7 +238,7 @@ type BrowserSyncK8sProxy struct {
 // PortForward is a dev tool to forward the port on a pod to the local machine.
 type PortForward struct {
 	// Name is the name of the PortForward configuration.
-	Name string `yaml:"name" validate:"required,alphanum"`
+	Name string `yaml:"name" validate:"required,name"`
 
 	// Selector is a Kubernetes selector.  The first pod that matches the
 	// selector is used for the port forwarding.  This is in accordance
