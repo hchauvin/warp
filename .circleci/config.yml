@@ -198,7 +198,7 @@ jobs:
       - run:
           name: Code coverage
           command: |
-            go test -v -covermode=count -coverprofile=coverage.out ./...
+            go test -v -covermode=count -coverprofile=coverage.out ./... -coverpkg=./pkg/...
             go install github.com/mattn/goveralls
             goveralls -coverprofile=coverage.out -service=circleci-ci -repotoken=$COVERALLS_TOKEN
   test-darwin:
