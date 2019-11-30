@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-playground/validator"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/imdario/mergo"
 	"github.com/spf13/afero"
@@ -25,7 +24,28 @@ func Read(config *config.Config, path string) (*Pipeline, error) {
 
 // ReadFs does the same as Read but on an arbitrary afero file system.
 func ReadFs(config *config.Config, path string, fs afero.Fs) (*Pipeline, error) {
-	return read(config, path, fs, make(map[string]struct{}))
+	p, err := read(config, path, fs, make(map[string]struct{}))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := validate.Struct(p); err != nil {
+		return nil, fmt.Errorf("%s: invalid pipeline config: %v", path, err)
+	}
+
+	if p.Stack.Name == "" && p.Stack.Family == "" {
+		return nil, fmt.Errorf("%s: either stack.name or stack.family must be given", path)
+	}
+
+	if p.Deploy.Container != nil && p.Deploy.Container.Manifest != "" {
+		manifestPath := config.Path(p.Deploy.Container.Manifest)
+		p.Deploy.Container.ParsedManifest, err = parseContainerManifest(fs, manifestPath)
+		if err != nil {
+			return nil, fmt.Errorf("pipeline %s: cannot parse container manifest '%s': %v", path, manifestPath, err)
+		}
+	}
+
+	return p, nil
 }
 
 func read(
@@ -45,16 +65,12 @@ func read(
 
 	yamlPipeline, err := afero.ReadFile(fs, fullPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read pipeline: %v", err)
+		return nil, fmt.Errorf("cannot read pipeline file %s: %v", path, err)
 	}
 
 	pipeline := &Pipeline{}
 	if err := yaml.Unmarshal(yamlPipeline, pipeline); err != nil {
 		return nil, err
-	}
-
-	if err := validator.New().Struct(pipeline); err != nil {
-		return nil, fmt.Errorf("invalid pipeline config: %v", err)
 	}
 
 	if len(pipeline.Bases) > 0 {
@@ -66,7 +82,7 @@ func read(
 
 		mergedPipeline := &Pipeline{}
 		for _, base := range pipeline.Bases {
-			basePipeline, err := read(config, base, fs, visitedPaths)
+			basePipeline, err := read(config, base, fs, nextVisitedPaths)
 			if err != nil {
 				return nil, err
 			}
@@ -83,14 +99,6 @@ func read(
 	}
 
 	pipeline.Path = fullPath
-
-	if pipeline.Deploy.Container != nil && pipeline.Deploy.Container.Manifest != "" {
-		path := config.Path(pipeline.Deploy.Container.Manifest)
-		pipeline.Deploy.Container.ParsedManifest, err = parseContainerManifest(fs, path)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse container manifest '%s': %v", path, err)
-		}
-	}
 
 	return pipeline, nil
 }
