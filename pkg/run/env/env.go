@@ -12,6 +12,7 @@ import (
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/stacks/names"
+	"github.com/hchauvin/warp/pkg/templates"
 	"text/template"
 )
 
@@ -32,6 +33,7 @@ func Transform(
 	for i, tplStr := range env {
 		tpl, err := template.New("config").
 			Funcs(sprig.TxtFuncMap()).
+			Funcs(templates.TxtFuncMap()).
 			Funcs(funcs.txtFuncMap(ctx)).
 			Parse(tplStr)
 		if err != nil {
