@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/sprig"
 	"github.com/go-playground/validator"
+	"github.com/hchauvin/warp/pkg/templates"
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/afero"
 	"path/filepath"
@@ -30,7 +31,10 @@ func ReadFs(fs afero.Fs, path string) (*Config, error) {
 		return nil, err
 	}
 
-	tpl, err := template.New("config").Funcs(sprig.TxtFuncMap()).Parse(string(b))
+	tpl, err := template.New("config").
+		Funcs(sprig.TxtFuncMap()).
+		Funcs(templates.TxtFuncMap()).
+		Parse(string(b))
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse template: %v", err)
 	}
