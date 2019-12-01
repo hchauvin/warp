@@ -31,6 +31,7 @@ func Exec(
 	pipeline *pipelines.Pipeline,
 	name names.Name,
 	imageRefs container.ImageRefs,
+	k8sClient *k8s.K8s,
 ) error {
 	dnsName := name.DNSName()
 	k := pipeline.Deploy.Kustomize
@@ -104,37 +105,20 @@ func Exec(
 
 	cfg.Logger().Info(logDomain, "kustomization expanded to '%s'", k8sResourcesPath)
 
-	kubectlPath, err := cfg.Tools[config.Kubectl].Resolve()
-	if err != nil {
+	if err := k8sClient.Apply(ctx, k8sResourcesPath, k8s.StackLabel+"="+dnsName); err != nil {
 		return err
 	}
-	cmd = proc.GracefulCommandContext(ctx, kubectlPath, "apply",
-		"-f", k8sResourcesPath,
-		"--force",
-		"--prune", "-l",
-		k8s.StackLabel+"="+dnsName,
-	)
-	cfg.Logger().Pipe(config.Kubectl.LogDomain(), cmd)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not apply kubectl patch '%s': %v", k8sResourcesPath, err)
-	}
-
 	return nil
 }
 
 // CleanUp cleans up/removes all the Kubernetes resources created during a Kustomization
 // deployment.
-func CleanUp(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) error {
-	kubectlPath, err := cfg.Tools[config.Kubectl].Resolve()
-	if err != nil {
-		return err
-	}
-	cmd := proc.GracefulCommandContext(ctx, kubectlPath, "delete",
-		"all",
-		"-l", k8s.StackLabel+"="+name.DNSName(),
-	)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not delete k8s resources: %v", err)
-	}
-	return nil
+func CleanUp(
+	ctx context.Context,
+	cfg *config.Config,
+	pipeline *pipelines.Pipeline,
+	name names.Name,
+	k8sClient *k8s.K8s,
+) error {
+	return k8sClient.DeleteAll(ctx, k8s.StackLabel+"="+name.DNSName())
 }

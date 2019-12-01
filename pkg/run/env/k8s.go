@@ -7,9 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/avast/retry-go"
-	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/k8s"
-	"github.com/hchauvin/warp/pkg/proc"
+	"strings"
 )
 
 func (funcs *templateFuncs) k8sServiceAddress(
@@ -18,13 +17,21 @@ func (funcs *templateFuncs) k8sServiceAddress(
 	service string,
 	exposedTCPPort int,
 ) (string, error) {
-	port, err := funcs.ports.Port(
+	var selector string
+	if strings.Contains(service, "=") {
+		selector = k8s.Labels{
+			k8s.StackLabel: funcs.name.DNSName(),
+		}.String() + "," + service
+	} else {
+		selector = k8s.Labels{
+			k8s.StackLabel:   funcs.name.DNSName(),
+			k8s.ServiceLabel: service,
+		}.String()
+	}
+	port, err := funcs.k8sClient.Ports.Port(
 		k8s.ServiceSpec{
 			Namespace: namespace,
-			Labels: k8s.Labels{
-				k8s.StackLabel:   funcs.name.DNSName(),
-				k8s.ServiceLabel: service,
-			}.String(),
+			Labels:    selector,
 		},
 		exposedTCPPort)
 	if err != nil {
@@ -70,16 +77,10 @@ func (funcs *templateFuncs) k8sDataKey(
 	name string,
 	key string,
 ) (string, error) {
-	kubectlPath, err := funcs.cfg.Tools[config.Kubectl].Resolve()
-	if err != nil {
-		return "", err
-	}
-
 	var val string
-	err = retry.Do(func() error {
-		out, err := proc.GracefulCommandContext(
+	err := retry.Do(func() error {
+		cmd, err := funcs.k8sClient.KubectlCommandContext(
 			ctx,
-			kubectlPath,
 			"get",
 			"--namespace",
 			namespace,
@@ -89,7 +90,11 @@ func (funcs *templateFuncs) k8sDataKey(
 				k8s.NameLabel:  name,
 			}.String(),
 			"-o=json",
-			kind).Output()
+			kind)
+		if err != nil {
+			return err
+		}
+		out, err := cmd.Output()
 		if err != nil {
 			return err
 		}

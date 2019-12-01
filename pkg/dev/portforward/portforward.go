@@ -18,12 +18,12 @@ func Exec(
 	cfg *config.Config,
 	pipeline *pipelines.Pipeline,
 	name names.Name,
-	ports *k8s.Ports,
+	k8sClient *k8s.K8s,
 ) error {
 	var g errgroup.Group
 	for _, spec := range pipeline.Dev.PortForward {
 		g.Go(func() error {
-			return ports.PodPortForward(
+			return k8sClient.Ports.PodPortForward(
 				k8s.ServiceSpec{
 					Labels: k8s.Labels{
 						k8s.StackLabel: name.DNSName(),

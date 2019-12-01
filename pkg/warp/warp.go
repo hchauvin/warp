@@ -182,12 +182,18 @@ func Gc(ctx context.Context, gcCfg *GcCfg) error {
 		return err
 	}
 
+	k8sClient, err := k8s.New(cfg)
+	if err != nil {
+		return err
+	}
+	defer k8sClient.Ports.CancelForwarding()
+
 	nameManager, err := name_manager.CreateFromURL(cfg.NameManagerURL)
 	if err != nil {
 		return fmt.Errorf("cannot create name manager: %v", err)
 	}
-	nameList, err := nameManager.List()
 
+	nameList, err := nameManager.List()
 	if err != nil {
 		return err
 	}
@@ -213,8 +219,13 @@ func Gc(ctx context.Context, gcCfg *GcCfg) error {
 			}
 			defer nameManager.Release(name.Family, name.Name)
 
-			cfg.Logger().Info(logDomain + ":gc", "family=%s shortName=%s", name.Family, name.Name)
-			return k8s.Gc(ctx, cfg, names.Name{Family: name.Family, ShortName: name.Name})
+			cfg.Logger().Info(logDomain+":gc", "family=%s shortName=%s", name.Family, name.Name)
+			err := k8sClient.Gc(ctx, cfg, names.Name{Family: name.Family, ShortName: name.Name})
+			if err != nil {
+				return err
+			}
+			cfg.Logger().Info(logDomain+":gc", "DONE: family=%s shortName=%s", name.Family, name.Name)
+			return nil
 		})
 	}
 

@@ -3,19 +3,12 @@ package k8s
 import (
 	"context"
 	"github.com/hchauvin/warp/pkg/config"
-	"github.com/hchauvin/warp/pkg/proc"
 	"github.com/hchauvin/warp/pkg/stacks/names"
 )
 
-func Gc(ctx context.Context, cfg *config.Config, name names.Name) error {
-	kubectlPath, err := cfg.Tools[config.Kubectl].Resolve()
-	if err != nil {
-		return err
-	}
-
-	cmd := proc.GracefulCommandContext(
+func (k8s *K8s) Gc(ctx context.Context, cfg *config.Config, name names.Name) error {
+	cmd, err := k8s.KubectlCommandContext(
 		ctx,
-		kubectlPath,
 		"delete",
 		"--all-namespaces",
 		"-l",
@@ -23,6 +16,9 @@ func Gc(ctx context.Context, cfg *config.Config, name names.Name) error {
 			StackLabel: name.DNSName(),
 		}.String(),
 		"all")
+	if err != nil {
+		return err
+	}
 	cfg.Logger().Pipe(logDomain+":gc", cmd)
 	return cmd.Run()
 }

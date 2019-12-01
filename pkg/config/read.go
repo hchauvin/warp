@@ -10,7 +10,10 @@ import (
 	"github.com/hchauvin/warp/pkg/templates"
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/afero"
+	"os/user"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"text/template"
 )
 
@@ -70,7 +73,41 @@ func ReadFs(fs afero.Fs, path string) (*Config, error) {
 		cfg.Tools[toolName] = tool
 	}
 
+	if cfg.Kubernetes != nil && len(cfg.Kubernetes.Kubeconfig) != 0 {
+		var envVar strings.Builder
+		for i, file := range cfg.Kubernetes.Kubeconfig {
+			expanded, err := expandPath(file)
+			if err != nil {
+				return nil, err
+			}
+			if !filepath.IsAbs(expanded) {
+				expanded = filepath.Join(root, expanded)
+			}
+			if i > 0 {
+				if runtime.GOOS == "windows" {
+					envVar.WriteRune(';')
+				} else {
+					envVar.WriteRune(':')
+				}
+			}
+			envVar.WriteString(expanded)
+		}
+		cfg.Kubernetes.KubeconfigEnvVar = envVar.String()
+	}
+
 	cfg.WorkspaceDir = root
 
 	return cfg, nil
+}
+
+func expandPath(path string) (string, error) {
+	if !strings.HasPrefix(path, "~/") {
+		return path, nil
+	}
+	usr, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	dir := usr.HomeDir
+	return filepath.Join(dir, path[2:]), nil
 }

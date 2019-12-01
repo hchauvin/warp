@@ -10,12 +10,13 @@ import (
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/deploy/container"
 	"github.com/hchauvin/warp/pkg/deploy/kustomize"
+	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/stacks/names"
 )
 
 // Exec executes the "deploy" steps.
-func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) error {
+func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
 	var refs container.ImageRefs
 	if pipeline.Deploy.Container != nil {
 		var err error
@@ -26,7 +27,7 @@ func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline,
 	}
 
 	if pipeline.Deploy.Kustomize != nil {
-		if err := kustomize.Exec(ctx, cfg, pipeline, name, refs); err != nil {
+		if err := kustomize.Exec(ctx, cfg, pipeline, name, refs, k8sClient); err != nil {
 			return fmt.Errorf("deploy.kustomize: %v", err)
 		}
 	}
@@ -35,9 +36,9 @@ func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline,
 }
 
 // CleanUp cleans up/removes the resources that are created by the deployment steps.
-func CleanUp(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) error {
+func CleanUp(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
 	if pipeline.Deploy.Kustomize != nil {
-		if err := kustomize.CleanUp(ctx, cfg, pipeline, name); err != nil {
+		if err := kustomize.CleanUp(ctx, cfg, pipeline, name, k8sClient); err != nil {
 			return fmt.Errorf("deploy.kustomize: %v", err)
 		}
 	}

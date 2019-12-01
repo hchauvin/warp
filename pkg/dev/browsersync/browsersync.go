@@ -27,7 +27,7 @@ func Exec(
 	cfg *config.Config,
 	pipeline *pipelines.Pipeline,
 	name names.Name,
-	ports *k8s.Ports,
+	k8sClient *k8s.K8s,
 ) error {
 	if len(pipeline.Dev.BrowserSync) == 0 {
 		return nil
@@ -42,7 +42,7 @@ func Exec(
 	for _, spec := range pipeline.Dev.BrowserSync {
 		spec := spec
 		g.Go(func() error {
-			localPort, err := ports.Port(
+			localPort, err := k8sClient.Ports.Port(
 				k8s.ServiceSpec{
 					Labels: k8s.Labels{
 						k8s.StackLabel: name.DNSName(),

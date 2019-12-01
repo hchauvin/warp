@@ -59,16 +59,15 @@ func Exec(
 	execCfg *ExecConfig,
 	detachedErrc chan<- error,
 ) (err error) {
-	if err := deploy.Exec(ctx, cfg, pipeline, execCfg.Name); err != nil {
-		return fmt.Errorf("deploy step failed: %v", err)
-	}
-
-	clientset, err := k8s.NewClient()
+	k8sClient, err := k8s.New(cfg)
 	if err != nil {
 		return err
 	}
-	ports := k8s.NewPorts(cfg, clientset)
-	defer ports.CancelForwarding()
+	defer k8sClient.Ports.CancelForwarding()
+
+	if err := deploy.Exec(ctx, cfg, pipeline, execCfg.Name, k8sClient); err != nil {
+		return fmt.Errorf("deploy step failed: %v", err)
+	}
 
 	if execCfg.Dev || execCfg.Tail {
 		detachedCtx, cancelDetached := context.WithCancel(ctx)
@@ -77,7 +76,7 @@ func Exec(
 
 		if execCfg.Dev {
 			detachedg.Go(func() error {
-				if err := dev.Exec(detachedCtx, cfg, pipeline, execCfg.Name, ports); err != nil {
+				if err := dev.Exec(detachedCtx, cfg, pipeline, execCfg.Name, k8sClient); err != nil {
 					if err == context.Canceled {
 						return err
 					}
@@ -89,7 +88,7 @@ func Exec(
 
 		if execCfg.Tail {
 			detachedg.Go(func() error {
-				if err := k8s.Tail(detachedCtx, cfg, execCfg.Name); err != nil {
+				if err := k8sClient.Tail(detachedCtx, cfg, execCfg.Name); err != nil {
 					if err == context.Canceled {
 						return err
 					}
@@ -106,7 +105,7 @@ func Exec(
 		}()
 	}
 
-	if err := run.Exec(ctx, cfg, pipeline, execCfg.Name, execCfg.Run, ports); err != nil {
+	if err := run.Exec(ctx, cfg, pipeline, execCfg.Name, execCfg.Run, k8sClient); err != nil {
 		return err
 	}
 
@@ -128,6 +127,12 @@ func Exec(
 // to give the full name) is optional if the stack does not come with a family name but instead
 // with one single name.
 func Remove(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, shortName string) error {
+	k8sClient, err := k8s.New(cfg)
+	if err != nil {
+		return err
+	}
+	defer k8sClient.Ports.CancelForwarding()
+
 	if shortName == "" {
 		if pipeline.Stack.Name == "" {
 			return errors.New("stack.name is mandatory if not specified otherwise")
@@ -136,7 +141,7 @@ func Remove(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipelin
 	}
 	name := names.Name{Family: pipeline.Stack.Family, ShortName: shortName}
 
-	if err := deploy.CleanUp(ctx, cfg, pipeline, name); err != nil {
+	if err := deploy.CleanUp(ctx, cfg, pipeline, name, k8sClient); err != nil {
 		return err
 	}
 

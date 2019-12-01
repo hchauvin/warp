@@ -113,21 +113,9 @@ type Kustomize struct {
 	DisableNamePrefix bool `yaml:"disableNamePrefix"`
 }
 
-// Command describes a command configuration.  Command configurations
-// are used to spawn processes that can access the stack, with
-// port forwarding and other mechanisms, between the setup and
-// the tear down of the stack.
-type Command struct {
-	// Name is the name of the run configuration.
-	Name string `yaml:"name" validate:"required,name"`
-
-	// Description describes the run configuration.
-	Description string `yaml:"description,omitempty"`
-
-	// Tags are arbitrary tags associated with the run configuration.
-	// They can be used to organize run configurations.
-	Tags []string `yaml:"tags" validate:"name"`
-
+// BaseCommand gives instructions to set up the environment and invoke
+// a command.
+type BaseCommand struct {
 	// WorkingDir is the working directory where to execute the command,
 	// relative to the workspace root (see config.Config.WorkspaceDir).
 	// If omitted, the working directory is not changed.
@@ -141,6 +129,84 @@ type Command struct {
 	// allow, e.g., to request service addresses, configuration values,
 	// that come from the deployment stage.
 	Env []string `yaml:"env"`
+}
+
+// Command describes a command configuration.  Command configurations
+// are used to spawn processes that can access the stack, with
+// port forwarding and other mechanisms, between the setup and
+// the tear down of the stack.
+type Command struct {
+	BaseCommand `yaml:",inline"`
+
+	// Name is the name of the run configuration.
+	Name string `yaml:"name" validate:"required,name"`
+
+	// Description describes the run configuration.
+	Description string `yaml:"description,omitempty"`
+
+	// Tags are arbitrary tags associated with the run configuration.
+	// They can be used to organize run configurations.
+	Tags []string `yaml:"tags" validate:"name"`
+
+	// Before is a list of command hooks that are executed concurrently
+	// before the command itself is actually executed.  If any of the
+	// hook fails, the other hooks and the command itself are skipped.
+	// The execution is eventually reported as a failure.
+	Before []CommandHook `yaml:"before,omitempty" validate:"dive"`
+}
+
+type CommandHook struct {
+	// Name is an optional name to help identify the hook.
+	Name string `yaml:"name,omitempty" validate:"name"`
+
+	// WaitFor indicates that the hook must wait for the resources
+	// to be in a certain state.
+	WaitFor *WaitForHook `yaml:"waitFor,omitempty"`
+
+	// Run indicates that the hook must execute a command.
+	Run *BaseCommand `yaml:"run,omitempty"`
+
+	// HttpGet indicates that the hook must perform an HTTP Get.
+	HTTPGet *HTTPGet `yaml:"httpGet,omitempty"`
+
+	// Timeout in seconds after which the hook is considered to have failed.
+	// 0 indicates no timeout.
+	TimeoutSeconds int `yaml:"timeoutSeconds,omitempty"`
+}
+
+type WaitForHook struct {
+	// Resources lists the resource kinds to wait for.
+	Resources []WaitForResourceKind `yaml:"resources"`
+}
+
+type WaitForResourceKind string
+
+const (
+	// Wait for all the services in the stack to have at least one
+	// endpoint ready.
+	Endpoints = WaitForResourceKind("endpoints")
+
+	// Wait for all the pods in the stack to be ready.
+	Pods = WaitForResourceKind("pods")
+)
+
+type HTTPGet struct {
+	// URL to send the GET request to.  The URL is subject to
+	// template substitution.
+	URL string `yaml:"url" validate:"required"`
+
+	// HTTPHeaders is a list of custom HTTP headers to set in
+	// the request.  HTTP allows repeated headers.
+	HTTPHeaders []HTTPHeader `yaml:"httpHeaders"`
+}
+
+// HTTPHeader specifies the name and value of an HTTP header.
+type HTTPHeader struct {
+	// Name of the HTTP header
+	Name string `yaml:"name" validate:"required"`
+
+	// Value of the HTTP header.
+	Value string `yaml:"value"`
 }
 
 // Dev describes the dev tools.  They are enabled when running

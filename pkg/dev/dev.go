@@ -22,25 +22,25 @@ func Exec(
 	cfg *config.Config,
 	pipeline *pipelines.Pipeline,
 	name names.Name,
-	ports *k8s.Ports,
+	k8sClient *k8s.K8s,
 ) error {
 	g, gctx := errgroup.WithContext(ctx)
 
 	if len(pipeline.Dev.Ksync) > 0 {
 		g.Go(func() error {
-			return ksync.Exec(gctx, cfg, pipeline, name)
+			return ksync.Exec(gctx, cfg, pipeline, name, k8sClient)
 		})
 	}
 
 	if len(pipeline.Dev.BrowserSync) > 0 {
 		g.Go(func() error {
-			return browsersync.Exec(gctx, cfg, pipeline, name, ports)
+			return browsersync.Exec(gctx, cfg, pipeline, name, k8sClient)
 		})
 	}
 
 	if len(pipeline.Dev.PortForward) > 0 {
 		g.Go(func() error {
-			return portforward.Exec(gctx, cfg, pipeline, name, ports)
+			return portforward.Exec(gctx, cfg, pipeline, name, k8sClient)
 		})
 	}
 

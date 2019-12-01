@@ -20,7 +20,7 @@ import (
 
 const logDomain = "dev.ksync"
 
-func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) error {
+func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
 	ksyncPath, err := cfg.Tools[config.Ksync].Resolve()
 	if err != nil {
 		return err
@@ -51,7 +51,10 @@ func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline,
 			}
 			args = append(args, cfg.Path(e.Local), e.Remote)
 			cfg.Logger().Info(logDomain, strings.Join(args, " "))
-			cmd := proc.GracefulCommandContext(ctx, ksyncPath, args...)
+			cmd, err := k8sClient.KubectlLikeCommandContext(ctx, ksyncPath, args...)
+			if err != nil {
+				return err
+			}
 			cfg.Logger().Pipe(config.Ksync.LogDomain(), cmd)
 			return cmd.Run()
 		})

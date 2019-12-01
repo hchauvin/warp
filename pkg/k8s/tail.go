@@ -7,22 +7,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/hchauvin/warp/pkg/config"
-	"github.com/hchauvin/warp/pkg/proc"
 	"github.com/hchauvin/warp/pkg/stacks/names"
 	"golang.org/x/sync/errgroup"
 	"strings"
 )
 
 // Tail pipes the stdout/stderr outputs of all the services of a stack.
-func Tail(ctx context.Context, cfg *config.Config, name names.Name) error {
-	kubectlPath, err := cfg.Tools[config.Kubectl].Resolve()
-	if err != nil {
-		return err
-	}
-
-	out, err := proc.GracefulCommandContext(
+func (k8s *K8s) Tail(ctx context.Context, cfg *config.Config, name names.Name) error {
+	cmd, err := k8s.KubectlCommandContext(
 		ctx,
-		kubectlPath,
 		"get",
 		"service",
 		"--all-namespaces",
@@ -31,7 +24,11 @@ func Tail(ctx context.Context, cfg *config.Config, name names.Name) error {
 			StackLabel: name.DNSName(),
 		}.String(),
 		"-o=json",
-	).Output()
+	)
+	if err != nil {
+		return err
+	}
+	out, err := cmd.Output()
 	if err != nil {
 		return err
 	}
@@ -51,9 +48,8 @@ func Tail(ctx context.Context, cfg *config.Config, name names.Name) error {
 		spec := spec
 		g.Go(func() error {
 			for {
-				cmd := proc.GracefulCommandContext(
+				cmd, err := k8s.KubectlCommandContext(
 					gctx,
-					kubectlPath,
 					"logs",
 					"-f",
 					"--namespace",
@@ -62,6 +58,9 @@ func Tail(ctx context.Context, cfg *config.Config, name names.Name) error {
 					"--all-containers=true",
 					"service/"+spec.name,
 				)
+				if err != nil {
+					return err
+				}
 				subLogDomain := "tail." + spec.namespace + "." + spec.name
 				cfg.Logger().Pipe(subLogDomain, cmd)
 				if err := cmd.Run(); err != nil {
