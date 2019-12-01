@@ -6,13 +6,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hchauvin/warp/pkg/config"
-	"github.com/hchauvin/warp/pkg/proc"
 	"github.com/phayes/freeport"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"sync"
 	"time"
 )
@@ -24,8 +21,7 @@ const logDomain = "k8s"
 // ports in duplicate, 2) provide a single function to cancel all the port
 // forwarding.
 type Ports struct {
-	cfg              *config.Config
-	clientset        *kubernetes.Clientset
+	k8sClient        *K8s
 	forwardg         *errgroup.Group
 	gctx             context.Context
 	cancelForwarding context.CancelFunc
@@ -34,13 +30,12 @@ type Ports struct {
 }
 
 // NewPorts creates the Ports singleton.
-func NewPorts(cfg *config.Config, clientset *kubernetes.Clientset) *Ports {
+func newPorts(k8sClient *K8s) *Ports {
 	ctx, cancelForwarding := context.WithCancel(context.Background())
 	forwardg, gctx := errgroup.WithContext(ctx)
 	forwarded := make(map[string]interface{})
 	return &Ports{
-		cfg,
-		clientset,
+		k8sClient,
 		forwardg,
 		gctx,
 		cancelForwarding,
@@ -114,11 +109,6 @@ func (ports *Ports) doPort(service ServiceSpec, exposedTcpPort int) (int, error)
 }
 
 func (ports *Ports) doPodPortForward(service ServiceSpec, localPort, exposedTCPPort int) error {
-	kubectlPath, err := ports.cfg.Tools[config.Kubectl].Resolve()
-	if err != nil {
-		return err
-	}
-
 	ports.forwardg.Go(func() error {
 		// This is very ugly, but will do until we use k8s endpoints to properly determine
 		// which pods are alive.  Without this sleep, you listen to the old port in case
@@ -128,7 +118,7 @@ func (ports *Ports) doPodPortForward(service ServiceSpec, localPort, exposedTCPP
 			// Let's get the endpoints for the service
 			endpoints, err := ports.getEndpoints(service)
 			if err != nil {
-				ports.cfg.Logger().Info(logDomain, "port-forward: cannot get endpoints for service %s: %v", service, err)
+				ports.k8sClient.cfg.Logger().Info(logDomain, "port-forward: cannot get endpoints for service %s: %v", service, err)
 			} else {
 				var targetRef *corev1.ObjectReference
 				for _, endpoint := range endpoints {
@@ -154,21 +144,24 @@ func (ports *Ports) doPodPortForward(service ServiceSpec, localPort, exposedTCPP
 				}
 
 				if targetRef == nil {
-					ports.cfg.Logger().Info(logDomain, "port-forward: no ready endpoint for service %s and TCP port %d", service, exposedTCPPort)
+					ports.k8sClient.cfg.Logger().Info(logDomain, "port-forward: no ready endpoint for service %s and TCP port %d", service, exposedTCPPort)
 				} else {
 					// TODO: Programmatic port forward
-					cmd := proc.GracefulCommandContext(ports.gctx, kubectlPath,
+					cmd, err := ports.k8sClient.KubectlCommandContext(ports.gctx,
 						"port-forward",
 						"--namespace", targetRef.Namespace,
 						"pod/"+targetRef.Name,
 						fmt.Sprintf("%d:%d", localPort, exposedTCPPort),
 					)
-					ports.cfg.Logger().Pipe(logDomain+":port-forward:ns="+service.Namespace+";l="+service.Labels, cmd)
+					if err != nil {
+						return err
+					}
+					ports.k8sClient.cfg.Logger().Pipe(logDomain+":port-forward:ns="+service.Namespace+";l="+service.Labels, cmd)
 					if err := cmd.Run(); err != nil {
 						if err == ports.gctx.Err() {
 							return err
 						}
-						ports.cfg.Logger().Info(logDomain, "port-forward: %v", err)
+						ports.k8sClient.cfg.Logger().Info(logDomain, "port-forward: %v", err)
 					}
 				}
 			}
@@ -198,7 +191,7 @@ func (ports *Ports) memoize(f func() (interface{}, error), fname string, args ..
 }
 
 func (ports *Ports) getEndpoints(service ServiceSpec) ([]corev1.EndpointSubset, error) {
-	lst, err := ports.clientset.CoreV1().
+	lst, err := ports.k8sClient.clientset.CoreV1().
 		Endpoints(service.Namespace).
 		List(metav1.ListOptions{LabelSelector: service.Labels})
 	if err != nil {

@@ -29,14 +29,53 @@ func ReadFs(config *config.Config, path string, fs afero.Fs) (*Pipeline, error) 
 		return nil, err
 	}
 
+	// Let's merge the commands by the 'name' key
+	var commandNames []string
+	commandsByName := make(map[string]Command)
+	hasMerged := false
+	for _, command := range p.Commands {
+		prev, ok := commandsByName[command.Name]
+		if !ok {
+			commandsByName[command.Name] = command
+			commandNames = append(commandNames, command.Name)
+		} else {
+			hasMerged = true
+			err = mergo.Merge(
+				&prev,
+				&command,
+				mergo.WithOverride,
+				mergo.WithAppendSlice)
+			if err != nil {
+				return nil, err
+			}
+			commandsByName[command.Name] = prev
+		}
+	}
+	if hasMerged {
+		p.Commands = nil
+		for _, name := range commandNames {
+			p.Commands = append(p.Commands, commandsByName[name])
+		}
+	}
+
+	// Generic validation
 	if err := validate.Struct(p); err != nil {
 		return nil, fmt.Errorf("%s: invalid pipeline config: %v", path, err)
 	}
 
+	// Ad hoc validation
 	if p.Stack.Name == "" && p.Stack.Family == "" {
 		return nil, fmt.Errorf("%s: either stack.name or stack.family must be given", path)
 	}
+	for _, command := range p.Commands {
+		for _, hook := range command.Before {
+			if err := validateCommandHook(&hook); err != nil {
+				return nil, err
+			}
+		}
+	}
 
+	// Manifest parsing
 	if p.Deploy.Container != nil && p.Deploy.Container.Manifest != "" {
 		manifestPath := config.Path(p.Deploy.Container.Manifest)
 		p.Deploy.Container.ParsedManifest, err = parseContainerManifest(fs, manifestPath)
@@ -118,5 +157,26 @@ func parseContainerManifest(fs afero.Fs, path string) (ContainerManifest, error)
 }
 
 func mergePipelines(dest, patch *Pipeline) error {
-	return mergo.Merge(dest, patch, mergo.WithOverride, mergo.WithAppendSlice)
+	err := mergo.Merge(dest, patch, mergo.WithOverride, mergo.WithAppendSlice)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateCommandHook(hook *CommandHook) error {
+	actionCount := 0
+	if hook.WaitFor != nil {
+		actionCount++
+	}
+	if hook.Run != nil {
+		actionCount++
+	}
+	if hook.HTTPGet != nil {
+		actionCount++
+	}
+	if actionCount != 1 {
+		return fmt.Errorf("there must be one and only one action per command hook")
+	}
+	return nil
 }

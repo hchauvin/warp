@@ -16,44 +16,48 @@ import (
 	"text/template"
 )
 
-// Transform gets environment variables from environment variable templates.
-func Transform(
-	ctx context.Context,
+type Transformer struct {
+	funcs templateFuncs
+}
+
+func NewTranformer(
 	cfg *config.Config,
 	name names.Name,
-	env []string,
-	ports *k8s.Ports,
-) ([]string, error) {
-	funcs := templateFuncs{cfg, name, ports, make(map[string]struct {
+	k8sClient *k8s.K8s,
+) *Transformer {
+	funcs := templateFuncs{cfg, name, k8sClient, make(map[string]struct {
 		string
 		error
 	})}
+	return &Transformer{funcs}
+}
 
-	ans := make([]string, len(env))
-	for i, tplStr := range env {
-		tpl, err := template.New("config").
-			Funcs(sprig.TxtFuncMap()).
-			Funcs(templates.TxtFuncMap()).
-			Funcs(funcs.txtFuncMap(ctx)).
-			Parse(tplStr)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse template '%s': %v", tplStr, err)
-		}
-		data := map[string]interface{}{}
-		w := &bytes.Buffer{}
-		if err := tpl.Execute(w, data); err != nil {
-			return nil, fmt.Errorf("cannot expand template: %v", err)
-		}
-		ans[i] = w.String()
+// Gets get the expansion of a template.
+func (trans *Transformer) Get(
+	ctx context.Context,
+	tplStr string,
+) (string, error) {
+	tpl, err := template.New("config").
+		Funcs(sprig.TxtFuncMap()).
+		Funcs(templates.TxtFuncMap()).
+		Funcs(trans.funcs.txtFuncMap(ctx)).
+		Parse(tplStr)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse template '%s': %v", tplStr, err)
 	}
-	return ans, nil
+	data := map[string]interface{}{}
+	w := &bytes.Buffer{}
+	if err := tpl.Execute(w, data); err != nil {
+		return "", fmt.Errorf("cannot expand template: %v", err)
+	}
+	return w.String(), nil
 }
 
 type templateFuncs struct {
-	cfg   *config.Config
-	name  names.Name
-	ports *k8s.Ports
-	cache map[string]struct {
+	cfg       *config.Config
+	name      names.Name
+	k8sClient *k8s.K8s
+	cache     map[string]struct {
 		string
 		error
 	}

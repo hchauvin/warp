@@ -30,6 +30,10 @@ type Config struct {
 	// in the PATH folders.
 	Tools map[Tool]*ToolInfo
 
+	// Kubernetes holds the (default) configuration for the Kubernetes
+	// cluster used for deployment.
+	Kubernetes *Kubernetes
+
 	// WorkspaceDir is the workspace directory.
 	WorkspaceDir string `toml:"-"`
 }
@@ -79,4 +83,24 @@ var toolDefaultPaths = map[Tool]string{
 	Ksync:       "ksync",
 	BrowserSync: "browser-sync",
 	Docker:      "docker",
+}
+
+// Kubernetes holds the configuration for a Kubernetes
+// cluster used for deployment.
+type Kubernetes struct {
+	// DefaultContext is the default kubeconfig context to use.  If omitted,
+	// the current kubeconfig context is used.
+	DefaultContext string
+
+	// Kubeconfig is a list of configuraton files that are merged
+	// to give the final kubeconfig configuration.  The files
+	// are "~" (home) expanded.
+	//
+	// For background info on configuration merging, see
+	// https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/#the-kubeconfig-environment-variable
+	Kubeconfig []string
+
+	// KubeconfigEnvVar is the value of the KUBECONFIG environment
+	// variable that is created from Kubeconfig.
+	KubeconfigEnvVar string `toml:"-"`
 }

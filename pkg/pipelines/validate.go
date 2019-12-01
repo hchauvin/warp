@@ -16,7 +16,7 @@ func init() {
 	}
 }
 
-var nameRe = regexp.MustCompile(`[A-Za-z0-9_-]+`)
+var nameRe = regexp.MustCompile(`^[A-Za-z0-9_-]*$`)
 
 func isName(fl validator.FieldLevel) bool {
 	field := fl.Field()
