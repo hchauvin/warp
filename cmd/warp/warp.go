@@ -16,8 +16,6 @@ var (
 	date    = "<unknown>"
 )
 
-const logDomain = "main"
-
 func main() {
 	app := cli.NewApp()
 
