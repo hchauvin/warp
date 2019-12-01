@@ -14,8 +14,10 @@ import (
 
 func NewClient(cfg *config.Config) (*kubernetes.Clientset, error) {
 	var kubeconfig string
+	var defaultContext string
 	if cfg.Kubernetes != nil {
 		kubeconfig = cfg.Kubernetes.KubeconfigEnvVar
+		defaultContext = cfg.Kubernetes.DefaultContext
 	}
 	if kubeconfig == "" {
 		kubeconfig = os.Getenv("KUBECONFIG")
@@ -31,7 +33,7 @@ func NewClient(cfg *config.Config) (*kubernetes.Clientset, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.Precedence = filepath.SplitList(kubeconfig)
 	overrides := &clientcmd.ConfigOverrides{}
-	overrides.CurrentContext = cfg.Kubernetes.DefaultContext
+	overrides.CurrentContext = defaultContext
 
 	clientLoader := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		loadingRules,
