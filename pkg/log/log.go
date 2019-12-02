@@ -23,17 +23,20 @@ var formatErrorPrefix = color.New(color.FgRed).SprintFunc()
 
 // Info logs an info message for the given log domain.
 func (l *Logger) Info(domain string, message string, args ...interface{}) {
-	l.printf(formatPrefix(domain+": ")+message+"\n", args...)
+	args = append([]interface{}{domain}, args...)
+	l.printf(formatPrefix("%s: ")+message+"\n", args)
 }
 
 // Info logs a warning message for the given log domain.
 func (l *Logger) Warning(domain string, message string, args ...interface{}) {
-	fmt.Printf(formatPrefix(domain+":")+formatWarningPrefix("WARNING: ")+message+"\n", args...)
+	args = append([]interface{}{domain}, args...)
+	l.printf(formatPrefix("%s: ")+formatWarningPrefix("WARNING: ")+message+"\n", args)
 }
 
 // Info logs an error message for the given log domain.
 func (l *Logger) Error(domain string, message string, args ...interface{}) {
-	fmt.Printf(formatPrefix(domain+":")+formatErrorPrefix("ERROR: ")+message+"\n", args...)
+	args = append([]interface{}{domain}, args...)
+	l.printf(formatPrefix("%s: ")+formatErrorPrefix("ERROR: ")+message+"\n", args)
 }
 
 // Pipe logs the stdin and stdout of a process.  The combined output
@@ -72,7 +75,7 @@ func (l *Logger) PipeReader(domain string, r io.Reader) {
 	go func() {
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
-			l.Info(domain, string(scanner.Bytes()))
+			l.Info(domain, "%s", string(scanner.Bytes()))
 		}
 	}()
 }
