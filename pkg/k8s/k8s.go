@@ -110,7 +110,7 @@ func (k8s *K8s) DeleteAll(ctx context.Context, labelSelector string) error {
 }
 
 func (k8s *K8s) KubectlCommandContext(ctx context.Context, args ...string) (*exec.Cmd, error) {
-	kubectlPath, err := k8s.cfg.Tools[config.Kubectl].Resolve()
+	kubectlPath, err := k8s.cfg.ToolPath(config.Kubectl)
 	if err != nil {
 		return nil, err
 	}

@@ -28,7 +28,7 @@ type Config struct {
 
 	// Tools configures tools.  By default, the tools are looked up
 	// in the PATH folders.
-	Tools map[Tool]*ToolInfo
+	Tools map[Tool]ToolInfo
 
 	// Kubernetes holds the (default) configuration for the Kubernetes
 	// cluster used for deployment.
@@ -48,15 +48,19 @@ func (cfg *Config) Logger() *log.Logger {
 	return &log.Logger{}
 }
 
+func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
+	return cfg.Tools[tool].Path, nil
+}
+
 // Tool is the name of a tool.
 type Tool string
 
 const (
-	Kustomize   = Tool("kustomize")
-	Kubectl     = Tool("kubectl")
-	Ksync       = Tool("ksync")
-	BrowserSync = Tool("browserSync")
-	Docker      = Tool("docker")
+	Kustomize   = Tool("Kustomize")
+	Kubectl     = Tool("Kubectl")
+	Ksync       = Tool("Ksync")
+	BrowserSync = Tool("BrowserSync")
+	Docker      = Tool("Docker")
 )
 
 // ToolNames gives all the required tools.
@@ -71,10 +75,6 @@ func (tool Tool) LogDomain() string {
 type ToolInfo struct {
 	// Path is the path to the tool on the local file system.
 	Path string
-}
-
-func (ti *ToolInfo) Resolve() (fullPath string, err error) {
-	return ti.Path, nil
 }
 
 var toolDefaultPaths = map[Tool]string{
