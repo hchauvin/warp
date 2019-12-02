@@ -21,7 +21,7 @@ import (
 const logDomain = "dev.ksync"
 
 func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
-	ksyncPath, err := cfg.Tools[config.Ksync].Resolve()
+	ksyncPath, err := cfg.ToolPath(config.Ksync)
 	if err != nil {
 		return err
 	}

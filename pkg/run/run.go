@@ -146,7 +146,7 @@ func execBaseCommand(
 		}
 		extraEnv[i] = ans
 	}
-	cfg.Logger().Info("run:"+specName+":env", strings.Join(extraEnv, "\n"))
+	cfg.Logger().Info("run:"+specName+":env", "%s", strings.Join(extraEnv, "\n"))
 	cmd.Env = append(os.Environ(), extraEnv...)
 	cfg.Logger().Pipe("run:"+specName, cmd)
 	if err := cmd.Run(); err != nil {

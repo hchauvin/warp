@@ -25,7 +25,7 @@ func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline,
 		return nil, nil
 	}
 
-	dockerPath, err := cfg.Tools[config.Docker].Resolve()
+	dockerPath, err := cfg.ToolPath(config.Docker)
 	if err != nil {
 		return nil, err
 	}

@@ -59,14 +59,10 @@ func ReadFs(fs afero.Fs, path string) (*Config, error) {
 	}
 
 	if cfg.Tools == nil {
-		cfg.Tools = make(map[Tool]*ToolInfo)
+		cfg.Tools = make(map[Tool]ToolInfo)
 	}
 	for _, toolName := range ToolNames {
-		var tool *ToolInfo
-		tool, ok := cfg.Tools[toolName]
-		if !ok {
-			tool = &ToolInfo{}
-		}
+		tool, _ := cfg.Tools[toolName]
 		if tool.Path == "" {
 			tool.Path = toolDefaultPaths[toolName]
 		}

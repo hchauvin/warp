@@ -33,7 +33,7 @@ func Exec(
 		return nil
 	}
 
-	browserSyncPath, err := cfg.Tools[config.BrowserSync].Resolve()
+	browserSyncPath, err := cfg.ToolPath(config.BrowserSync)
 	if err != nil {
 		return err
 	}
