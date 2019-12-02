@@ -10,7 +10,7 @@ require (
 	github.com/fatih/color v1.7.0
 	github.com/go-playground/validator v9.30.2+incompatible
 	github.com/go-playground/validator/v10 v10.0.1
-	github.com/hchauvin/name_manager v0.2.0
+	github.com/hchauvin/name_manager v0.2.1
 	github.com/huandu/xstrings v1.2.1 // indirect
 	github.com/imdario/mergo v0.3.8
 	github.com/joho/godotenv v1.3.0
