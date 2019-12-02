@@ -159,6 +159,11 @@ type CommandHook struct {
 	// Name is an optional name to help identify the hook.
 	Name string `yaml:"name,omitempty" validate:"name"`
 
+	// DependsOn lists the name of other command hooks that must be executed
+	// successfully before this command hook is executed.  Loops
+	// are of course forbidden.
+	DependsOn []string `yaml:"dependsOn"`
+
 	// WaitFor indicates that the hook must wait for the resources
 	// to be in a certain state.
 	WaitFor *WaitForHook `yaml:"waitFor,omitempty"`

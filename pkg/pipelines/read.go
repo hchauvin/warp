@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/afero"
 	"gopkg.in/yaml.v2"
 	"path/filepath"
+	"strings"
 )
 
 // Read reads a pipeline from a file on the local file system.  The path
@@ -68,10 +69,8 @@ func ReadFs(config *config.Config, path string, fs afero.Fs) (*Pipeline, error) 
 		return nil, fmt.Errorf("%s: either stack.name or stack.family must be given", path)
 	}
 	for _, command := range p.Commands {
-		for _, hook := range command.Before {
-			if err := validateCommandHook(&hook); err != nil {
-				return nil, err
-			}
+		if err := validateCommandHooks(command.Before); err != nil {
+			return nil, err
 		}
 	}
 
@@ -160,6 +159,67 @@ func mergePipelines(dest, patch *Pipeline) error {
 	err := mergo.Merge(dest, patch, mergo.WithOverride, mergo.WithAppendSlice)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func validateCommandHooks(hooks []CommandHook) error {
+	// Validate the hooks individually
+	for _, hook := range hooks {
+		if err := validateCommandHook(&hook); err != nil {
+			return err
+		}
+	}
+
+	namedHooks := make(map[string]CommandHook)
+	for _, hook := range hooks {
+		if hook.Name != "" {
+			if _, ok := namedHooks[hook.Name]; ok {
+				return fmt.Errorf("multiple hooks are named '%s'", hook.Name)
+			}
+			namedHooks[hook.Name] = hook
+		}
+	}
+
+	// Validate the DAG.  We must be able to visit all the hooks, and there
+	// should be no loop.
+	for i, hook := range hooks {
+		hookName := hook.Name
+		if hookName == "" {
+			hookName = fmt.Sprintf("#%d", i)
+		}
+		if err := visitHookDependencies(namedHooks, hookName, &hook, make(map[string]struct{})); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func visitHookDependencies(namedHooks map[string]CommandHook, hookName string, hook *CommandHook, visited map[string]struct{}) error {
+	if _, ok := visited[hook.Name]; ok {
+		path := make([]string, len(visited))
+		for id := range visited {
+			path = append(path, id)
+		}
+		return fmt.Errorf("cycle detected: %s", strings.Join(path, " -> "))
+	}
+	for _, dep := range hook.DependsOn {
+		nextVisited := make(map[string]struct{}, len(visited)+1)
+		for id := range visited {
+			nextVisited[id] = struct{}{}
+		}
+		nextVisited[dep] = struct{}{}
+		nextHook, ok := namedHooks[dep]
+		if !ok {
+			return fmt.Errorf(
+				"hook '%s' depends on hook '%s', but this hook does not exist",
+				hookName,
+				dep)
+		}
+		if err := visitHookDependencies(namedHooks, nextHook.Name, &nextHook, visited); err != nil {
+			return err
+		}
 	}
 	return nil
 }

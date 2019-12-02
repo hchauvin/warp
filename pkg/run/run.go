@@ -70,10 +70,25 @@ func execHooks(
 	hooks []pipelines.CommandHook,
 	k8sClient *k8s.K8s,
 ) error {
+	done := make(map[string]chan struct{})
+	for _, hook := range hooks {
+		if hook.Name != "" {
+			done[hook.Name] = make(chan struct{})
+		}
+	}
+
 	g, gctx := errgroup.WithContext(ctx)
 	for i, hook := range hooks {
 		i, hook := i, hook
 		g.Go(func() error {
+			for _, dep := range hook.DependsOn {
+				select {
+				case <-gctx.Done():
+					return gctx.Err()
+				case <-done[dep]:
+				}
+			}
+
 			var hookCtx context.Context
 			if hook.TimeoutSeconds == 0 {
 				hookCtx = gctx
@@ -82,44 +97,65 @@ func execHooks(
 				hookCtx, cancel = context.WithTimeout(gctx, time.Duration(hook.TimeoutSeconds)*time.Second)
 				defer cancel()
 			}
-			if hook.WaitFor != nil {
-				k, err := k8s.New(cfg)
-				if err != nil {
-					return err
-				}
-				for _, resource := range hook.WaitFor.Resources {
-					if resource == pipelines.Endpoints {
-						if err := k.WaitForEndpoints(hookCtx, "default", name); err != nil {
-							return err
-						}
-					}
-					if resource == pipelines.Pods {
-						if err := k.WaitForPods(hookCtx, "default", name); err != nil {
-							return err
-						}
-					}
-				}
-			} else if hook.Run != nil {
-				err := execBaseCommand(
-					hookCtx,
-					cfg,
-					name,
-					fmt.Sprintf("%s:before(%d)", specName, i),
-					hook.Run,
-					k8sClient,
-				)
-				if err != nil {
-					return err
-				}
-			} else if hook.HTTPGet != nil {
-				if err := httpGet(hookCtx, cfg, name, hook.HTTPGet, k8sClient); err != nil {
-					return err
-				}
+
+			if err := execHook(hookCtx, cfg, name, specName, i, &hook, k8sClient); err != nil {
+				return fmt.Errorf("hook #%d: %s", i, err)
+			}
+
+			if hook.Name != "" {
+				close(done[hook.Name])
 			}
 			return nil
 		})
 	}
 	return g.Wait()
+}
+
+func execHook(
+	ctx context.Context,
+	cfg *config.Config,
+	name names.Name,
+	specName string,
+	i int,
+	hook *pipelines.CommandHook,
+	k8sClient *k8s.K8s,
+) error {
+	if hook.WaitFor != nil {
+		k, err := k8s.New(cfg)
+		if err != nil {
+			return err
+		}
+		for _, resource := range hook.WaitFor.Resources {
+			if resource == pipelines.Endpoints {
+				if err := k.WaitForEndpoints(ctx, "default", name); err != nil {
+					return err
+				}
+			}
+			if resource == pipelines.Pods {
+				if err := k.WaitForPods(ctx, "default", name); err != nil {
+					return err
+				}
+			}
+		}
+	} else if hook.Run != nil {
+		err := execBaseCommand(
+			ctx,
+			cfg,
+			name,
+			fmt.Sprintf("%s:before(%d)", specName, i),
+			hook.Run,
+			k8sClient,
+		)
+		if err != nil {
+			return err
+		}
+	} else if hook.HTTPGet != nil {
+		if err := httpGet(ctx, cfg, name, hook.HTTPGet, k8sClient); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func execBaseCommand(
