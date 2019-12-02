@@ -8,6 +8,7 @@ package config
 import (
 	"github.com/hchauvin/warp/pkg/log"
 	"path/filepath"
+	"strings"
 )
 
 // Config is the project-wide configuration for warp.
@@ -49,7 +50,17 @@ func (cfg *Config) Logger() *log.Logger {
 }
 
 func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
-	return cfg.Tools[tool].Path, nil
+	path := cfg.Tools[tool].Path
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+	if !strings.Contains(path, "/") {
+		return path, nil
+	}
+	if strings.HasPrefix(path, "./") {
+		path = path[2:]
+	}
+	return filepath.Join(cfg.WorkspaceDir, path), nil
 }
 
 // Tool is the name of a tool.
