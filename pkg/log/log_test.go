@@ -14,8 +14,16 @@ func TestLevels(t *testing.T) {
 	}
 
 	l.Info("foo", "bar %d", 10)
+	assert.Equal(t, "foo: bar 10\n", string(w.Bytes()))
+	w.Reset()
+
 	l.Warning("foo", "bar %d", 10)
+	assert.Equal(t, "foo: WARNING: bar 10\n", string(w.Bytes()))
+	w.Reset()
+
 	l.Error("foo", "bar %d", 10)
+	assert.Equal(t, "foo: ERROR: bar 10\n", string(w.Bytes()))
+	w.Reset()
 }
 
 func TestPipe(t *testing.T) {
