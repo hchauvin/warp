@@ -97,7 +97,7 @@ func (k8s *K8s) WaitForPods(ctx context.Context, k8sNamespace string, name names
 			if pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodFailed {
 				k8s.cfg.Logger().Info(
 					subLogDomain,
-					"pod %s: phase=%s", pod.Status.Phase)
+					"pod %s: phase=%s", pod.Name, pod.Status.Phase)
 				ready = false
 			}
 		}
