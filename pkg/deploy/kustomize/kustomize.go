@@ -92,7 +92,7 @@ func Exec(
 		return fmt.Errorf("could not write kustomization overlay '%s': %v", overlayPath, err)
 	}
 
-	kustomizePath, err := cfg.Tools[config.Kustomize].Resolve()
+	kustomizePath, err := cfg.ToolPath(config.Kustomize)
 	if err != nil {
 		return err
 	}
