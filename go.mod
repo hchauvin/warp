@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
-	github.com/Masterminds/sprig/v3 v3.0.0
+	github.com/Masterminds/sprig/v3 v3.0.1
 	github.com/avast/retry-go v2.4.3+incompatible
 	github.com/fatih/color v1.7.0
 	github.com/go-playground/validator v9.30.2+incompatible
