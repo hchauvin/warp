@@ -191,7 +191,7 @@ func (ports *Ports) memoize(f func() (interface{}, error), fname string, args ..
 }
 
 func (ports *Ports) getEndpoints(service ServiceSpec) ([]corev1.EndpointSubset, error) {
-	lst, err := ports.k8sClient.clientset.CoreV1().
+	lst, err := ports.k8sClient.Clientset.CoreV1().
 		Endpoints(service.Namespace).
 		List(metav1.ListOptions{LabelSelector: service.Labels})
 	if err != nil {

@@ -59,6 +59,35 @@ func ReadFs(config *config.Config, path string, fs afero.Fs) (*Pipeline, error) 
 		}
 	}
 
+	// Let's merge the environments by the 'name' key
+	/*var envNames []string
+	envsByName := make(map[string]Environment)
+	hasMerged = false
+	for _, env := range p.Environments {
+		prev, ok := envsByName[env.Name]
+		if !ok {
+			envsByName[env.Name] = env
+			envNames = append(envNames, env.Name)
+		} else {
+			hasMerged = true
+			err = mergo.Merge(
+				&prev,
+				&env,
+				mergo.WithOverride,
+				mergo.WithAppendSlice)
+			if err != nil {
+				return nil, err
+			}
+			envsByName[env.Name] = prev
+		}
+	}
+	if hasMerged {
+		p.Environments = nil
+		for _, name := range envNames {
+			p.Environments = append(p.Environments, envsByName[name])
+		}
+	}*/
+
 	// Generic validation
 	if err := validate.Struct(p); err != nil {
 		return nil, fmt.Errorf("%s: invalid pipeline config: %v", path, err)

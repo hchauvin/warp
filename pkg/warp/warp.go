@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hchauvin/name_manager/pkg/name_manager"
+	"github.com/hchauvin/warp/pkg/batches"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/stacks"
 	"github.com/hchauvin/warp/pkg/stacks/names"
+	run_batch "github.com/hchauvin/warp/pkg/run/batch"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"gopkg.in/yaml.v2"
@@ -124,6 +126,48 @@ func Hold(holdCfg *HoldConfig) error {
 		return errors.New(strings.Join(errs, "\n"))
 	}
 	return nil
+}
+
+// BatchCfg configures the Batch function.
+type BatchCfg struct {
+	WorkingDir   string
+	ConfigPath   string
+	BatchPath string
+	Parallelism int
+	MaxStacksPerPipeline int
+	Tags string
+	Focus string
+	Bail bool
+}
+
+// Batch executes a batch.
+func Batch(ctx context.Context, batchCfg *BatchCfg) error {
+	cfg, err := readConfig(batchCfg.WorkingDir, batchCfg.ConfigPath)
+	if err != nil {
+		return err
+	}
+
+	batch, err := batches.Read(cfg, batchCfg.BatchPath)
+	if err != nil {
+		return err
+	}
+
+	filteredBatch, err := batch.Filter(batchCfg.Tags, batchCfg.Focus)
+	if err != nil {
+		return err
+	}
+
+	k8sClient, err := k8s.New(cfg)
+	if err != nil {
+		return err
+	}
+	defer k8sClient.Ports.CancelForwarding()
+
+	return run_batch.RunBatch(ctx, cfg, filteredBatch, &run_batch.RunBatchOptions{
+		Parallelism: batchCfg.Parallelism,
+		MaxStacksPerPipeline: batchCfg.MaxStacksPerPipeline,
+		Bail: batchCfg.Bail,
+	}, k8sClient)
 }
 
 // RmCfg configures the Rm function.

@@ -4,6 +4,8 @@
 // Copyright (c) 2019 Hadrien Chauvin
 package pipelines
 
+import "fmt"
+
 // Pipeline defines a deployment and test pipeline.  Its scope is
 // everything beyond the build step and unit/integration tests.
 type Pipeline struct {
@@ -26,15 +28,28 @@ type Pipeline struct {
 	// during local development or debugging.
 	Dev Dev `yaml:"dev"`
 
+	Environments Environments `yaml:"environments,omitempty" patchStrategy:"merge" patchMergeKey:"name" validate:"dive"`
+
 	// Command describes the command configurations.  Command configurations
 	// are used to spawn processes that can access the stack, with
 	// port forwarding and other mechanisms, between the setup and
 	// the tear down of the stack.
-	Commands []Command `yaml:"commands,omitempty" patchStrategy:"merge" patchMergeKey:"names" validate:"dive"`
+	Commands []Command `yaml:"commands,omitempty" patchStrategy:"merge" patchMergeKey:"name" validate:"dive"`
 
 	// Path is the absolute path to the pipeline definition.  It is
 	// resolved by Read.
 	Path string `yaml:"-"`
+}
+
+type Environments []Environment
+
+func (envs Environments) Get(name string) (*Environment, error) {
+	for _, env := range envs {
+		if env.Name == name {
+			return &env, nil
+		}
+	}
+	return nil, fmt.Errorf("cannot find environment named '%s', name")
 }
 
 // Stack gives the identity of the stacks created by the pipeline.
@@ -113,6 +128,31 @@ type Kustomize struct {
 	DisableNamePrefix bool `yaml:"disableNamePrefix"`
 }
 
+type Environment struct {
+	// Name is the name of the environment.
+	Name string `yaml:"name" validate:"required,name"`
+
+	// Bases contains base files to merge into this pipeline, using
+	// strategic merging.  The file names must be relative to the
+	// root given in the warprc.toml configuration.
+	//
+	// Loops in the inheritance chain are forbidden and explicitly
+	// controlled for.
+	Bases []string `yaml:"bases,omitempty"`
+
+	// Before is a list of command hooks that are executed concurrently
+	// before the command itself is actually executed.  If any of the
+	// hook fails, the other hooks and the command itself are skipped.
+	// The execution is eventually reported as a failure.
+	Before []CommandHook `yaml:"before,omitempty" validate:"dive"`
+
+	// Env is a list of environment variables, specified as "name=value"
+	// strings.  The values can be templated.  The template functions
+	// allow, e.g., to request service addresses, configuration values,
+	// that come from the deployment stage.
+	Env []string `yaml:"env"`
+}
+
 // BaseCommand gives instructions to set up the environment and invoke
 // a command.
 type BaseCommand struct {
@@ -152,7 +192,7 @@ type Command struct {
 	// before the command itself is actually executed.  If any of the
 	// hook fails, the other hooks and the command itself are skipped.
 	// The execution is eventually reported as a failure.
-	Before []CommandHook `yaml:"before,omitempty" validate:"dive"`
+	Before []CommandHook `yaml:"ready,omitempty" validate:"dive"`
 }
 
 type CommandHook struct {

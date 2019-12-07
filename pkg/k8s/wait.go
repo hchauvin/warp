@@ -15,7 +15,7 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 	const subLogDomain = logDomain + ":waitFor:endpoints"
 
 	// Wait for all the services to have at least one endpoint ready
-	services, err := k8s.clientset.CoreV1().Services(k8sNamespace).
+	services, err := k8s.Clientset.CoreV1().Services(k8sNamespace).
 		List(metav1.ListOptions{
 			LabelSelector: Labels{
 				StackLabel: name.DNSName(),
@@ -44,7 +44,7 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 					StackLabel:   name.DNSName(),
 					ServiceLabel: serviceName,
 				}.String()
-				endpoints, err := k8s.clientset.CoreV1().
+				endpoints, err := k8s.Clientset.CoreV1().
 					Endpoints(k8sNamespace).
 					List(metav1.ListOptions{
 						LabelSelector: labelSelector,
@@ -83,7 +83,7 @@ func (k8s *K8s) WaitForPods(ctx context.Context, k8sNamespace string, name names
 	const subLogDomain = logDomain + ":waitFor:pods"
 
 	for {
-		pods, err := k8s.clientset.CoreV1().Pods(k8sNamespace).
+		pods, err := k8s.Clientset.CoreV1().Pods(k8sNamespace).
 			List(metav1.ListOptions{
 				LabelSelector: Labels{
 					StackLabel: name.DNSName(),

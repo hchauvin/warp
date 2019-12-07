@@ -13,6 +13,7 @@ import (
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/stacks/names"
 	"github.com/hchauvin/warp/pkg/templates"
+	"sync"
 	"text/template"
 )
 
@@ -25,10 +26,13 @@ func NewTranformer(
 	name names.Name,
 	k8sClient *k8s.K8s,
 ) *Transformer {
-	funcs := templateFuncs{cfg, name, k8sClient, make(map[string]struct {
-		string
-		error
-	})}
+	funcs := templateFuncs{
+		cfg,
+		name,
+		k8sClient,
+		sync.RWMutex{},
+		make(map[string]cacheEntry),
+	}
 	return &Transformer{funcs}
 }
 
@@ -53,14 +57,17 @@ func (trans *Transformer) Get(
 	return w.String(), nil
 }
 
+type cacheEntry struct {
+	string
+	error
+}
+
 type templateFuncs struct {
 	cfg       *config.Config
 	name      names.Name
 	k8sClient *k8s.K8s
-	cache     map[string]struct {
-		string
-		error
-	}
+	cacheMut sync.RWMutex
+	cache     map[string]cacheEntry
 }
 
 func (funcs *templateFuncs) txtFuncMap(ctx context.Context) template.FuncMap {
@@ -84,6 +91,16 @@ func (funcs *templateFuncs) txtFuncMap(ctx context.Context) template.FuncMap {
 				namespace,
 				service,
 				exposedTCPPort,
+			)
+		},
+		"k8sServiceName": func(namespace, service string) (string, error) {
+			return funcs.memoize(
+				func() (string, error) {
+					return funcs.k8sServiceName(ctx, namespace, service)
+				},
+				"k8sServiceName",
+				namespace,
+				service,
 			)
 		},
 		"k8sConfigMapKey": func(namespace, name, key string) (string, error) {
@@ -121,13 +138,15 @@ func (funcs *templateFuncs) serviceAddress(
 
 func (funcs *templateFuncs) memoize(f func() (string, error), fname string, args ...interface{}) (string, error) {
 	hash := fmt.Sprintf("%s %v", fname, args)
-	if ans, ok := funcs.cache[hash]; ok {
-		return ans.string, ans.error
+	funcs.cacheMut.RLock()
+	cached, ok := funcs.cache[hash]
+	funcs.cacheMut.RUnlock()
+	if ok {
+		return cached.string, cached.error
 	}
 	ans, err := f()
-	funcs.cache[hash] = struct {
-		string
-		error
-	}{ans, err}
+	funcs.cacheMut.Lock()
+	funcs.cache[hash] = cacheEntry{ans, err}
+	funcs.cacheMut.Unlock()
 	return ans, err
 }

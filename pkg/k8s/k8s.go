@@ -60,7 +60,7 @@ func homeDir() string {
 
 type K8s struct {
 	cfg       *config.Config
-	clientset *kubernetes.Clientset
+	Clientset *kubernetes.Clientset
 	Ports     *Ports
 }
 
@@ -71,7 +71,7 @@ func New(cfg *config.Config) (*K8s, error) {
 	}
 	client := &K8s{
 		cfg:       cfg,
-		clientset: clientset,
+		Clientset: clientset,
 	}
 	client.Ports = newPorts(client)
 	return client, nil

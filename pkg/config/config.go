@@ -41,6 +41,9 @@ type Config struct {
 
 // Path resolves a path relative to the workspace dir.
 func (cfg *Config) Path(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
 	return filepath.Join(cfg.WorkspaceDir, path)
 }
 

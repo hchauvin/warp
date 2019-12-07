@@ -77,6 +77,47 @@ func main() {
 			},
 		},
 		{
+			Name: "batch",
+			Usage: "Executes a batch of commands",
+			ArgsUsage: "<batch file>",
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name: "parallelism",
+					Usage: "Parallelism",
+					Value: 1,
+				},
+				cli.IntFlag{
+					Name: "max_stacks_per_pipeline",
+					Usage: "Max stacks per pipeline",
+					Value: 1,
+				},
+				cli.StringFlag{
+					Name: "tags",
+					Usage: "Test tag filter",
+				},
+				cli.StringFlag{
+					Name: "focus",
+					Usage: "Test focus",
+				},
+				cli.BoolFlag{
+					Name: "bail",
+					Usage: "Bail out on first error",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return warp.Batch(context.Background(), &warp.BatchCfg{
+					WorkingDir:   c.GlobalString("cwd"),
+					ConfigPath:   c.GlobalString("config"),
+					BatchPath: c.Args().First(),
+					Parallelism: c.Int("parallelism"),
+					MaxStacksPerPipeline: c.Int("max_stacks_per_pipeline"),
+					Tags: c.String("tags"),
+					Focus: c.String("focus"),
+					Bail: c.Bool("bail"),
+				})
+			},
+		},
+		{
 			Name:        "rm",
 			Usage:       "Removes/cleans stacks",
 			ArgsUsage:   "<pipeline file> [short names...]",

@@ -41,12 +41,12 @@ func Exec(
 		}
 
 		if len(spec.Before) > 0 {
-			if err := execHooks(ctx, cfg, name, specName, spec.Before, k8sClient); err != nil {
+			if err := ExecHooks(ctx, cfg, name, specName, spec.Before, k8sClient); err != nil {
 				return err
 			}
 		}
 
-		err := execBaseCommand(
+		err := ExecBaseCommand(
 			ctx,
 			cfg,
 			name,
@@ -62,7 +62,7 @@ func Exec(
 	return nil
 }
 
-func execHooks(
+func ExecHooks(
 	ctx context.Context,
 	cfg *config.Config,
 	name names.Name,
@@ -138,7 +138,7 @@ func execHook(
 			}
 		}
 	} else if hook.Run != nil {
-		err := execBaseCommand(
+		err := ExecBaseCommand(
 			ctx,
 			cfg,
 			name,
@@ -158,7 +158,7 @@ func execHook(
 	return nil
 }
 
-func execBaseCommand(
+func ExecBaseCommand(
 	ctx context.Context,
 	cfg *config.Config,
 	name names.Name,
