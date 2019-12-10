@@ -37,6 +37,22 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		{
+			Name:        "lint",
+			Usage:       "Lints a stack",
+			ArgsUsage:   "<pipeline file>",
+			Description: "Lints a stack.",
+			Action: func(c *cli.Context) (err error) {
+				t := commandInvoked(c)
+				defer t.completed(err)
+				err = warp.Lint(context.Background(), &warp.LintCfg{
+					WorkingDir:   c.GlobalString("cwd"),
+					ConfigPath:   c.GlobalString("config"),
+					PipelinePath: c.Args().First(),
+				})
+				return
+			},
+		},
+		{
 			Name:        "hold",
 			Usage:       "Holds a stack",
 			ArgsUsage:   "<pipeline file>",
@@ -52,7 +68,19 @@ func main() {
 				},
 				cli.StringSliceFlag{
 					Name:  "run",
-					Usage: "Runs programs in the 'run' section, given their spec name",
+					Usage: "Runs programs in the 'commands' section, given their spec name",
+				},
+				cli.StringFlag{
+					Name:  "setup",
+					Usage: "Sets up",
+				},
+				cli.StringFlag{
+					Name:  "dump_env",
+					Usage: "Dumps env",
+				},
+				cli.BoolFlag{
+					Name:  "persist_env",
+					Usage: "Persists the dumped env variables after warp exits",
 				},
 				cli.BoolFlag{
 					Name:  "wait",
@@ -63,17 +91,93 @@ func main() {
 					Usage: "Removes/cleans up a stack when finished",
 				},
 			},
-			Action: func(c *cli.Context) error {
-				return warp.Hold(&warp.HoldConfig{
+			Action: func(c *cli.Context) (err error) {
+				t := commandInvoked(c)
+				defer t.completed(err)
+				err = warp.Hold(&warp.HoldConfig{
 					WorkingDir:   c.GlobalString("cwd"),
 					ConfigPath:   c.GlobalString("config"),
 					PipelinePath: c.Args().First(),
 					Dev:          c.Bool("dev"),
 					Tail:         c.Bool("tail"),
 					Run:          c.StringSlice("run"),
+					Setup:        c.String("setup"),
+					DumpEnv:      c.String("dump_env"),
+					PersistEnv:   c.Bool("persist_env"),
 					Wait:         c.Bool("wait"),
 					Rm:           c.Bool("rm"),
 				})
+				return
+			},
+		},
+		{
+			Name:        "deploy",
+			Usage:       "Deploys a stack",
+			ArgsUsage:   "<pipeline file>",
+			Description: "Deploys a stack created from a specific pipeline.",
+			Action: func(c *cli.Context) (err error) {
+				t := commandInvoked(c)
+				defer t.completed(err)
+				err = warp.Deploy(context.Background(), &warp.DeployCfg{
+					WorkingDir:   c.GlobalString("cwd"),
+					ConfigPath:   c.GlobalString("config"),
+					PipelinePath: c.Args().First(),
+				})
+				return
+			},
+		},
+		{
+			Name:      "batch",
+			Usage:     "Executes a batch of commands",
+			ArgsUsage: "<batch file>",
+			Flags: []cli.Flag{
+				cli.IntFlag{
+					Name:  "parallelism",
+					Usage: "Parallelism",
+					Value: 1,
+				},
+				cli.IntFlag{
+					Name:  "max_stacks_per_pipeline",
+					Usage: "Max stacks per pipeline",
+					Value: 1,
+				},
+				cli.StringFlag{
+					Name:  "tags",
+					Usage: "Test tag filter",
+				},
+				cli.StringFlag{
+					Name:  "focus",
+					Usage: "Test focus",
+				},
+				cli.BoolFlag{
+					Name:  "bail",
+					Usage: "Bail out on first error",
+				},
+				cli.StringFlag{
+					Name:  "report",
+					Usage: "Output path to report folder",
+				},
+				cli.BoolFlag{
+					Name:  "stream",
+					Usage: "Stream results instead of being in interactive mode",
+				},
+			},
+			Action: func(c *cli.Context) (err error) {
+				t := commandInvoked(c)
+				defer t.completed(err)
+				err = warp.Batch(context.Background(), &warp.BatchCfg{
+					WorkingDir:           c.GlobalString("cwd"),
+					ConfigPath:           c.GlobalString("config"),
+					BatchPath:            c.Args().First(),
+					Parallelism:          c.Int("parallelism"),
+					MaxStacksPerPipeline: c.Int("max_stacks_per_pipeline"),
+					Tags:                 c.String("tags"),
+					Focus:                c.String("focus"),
+					Bail:                 c.Bool("bail"),
+					Report:               c.String("report"),
+					Stream:               c.Bool("stream"),
+				})
+				return err
 			},
 		},
 		{
@@ -87,26 +191,44 @@ func main() {
 					Usage: "Removes all the stacks, even the ones that are currently in use",
 				},
 			},
-			Action: func(c *cli.Context) error {
-				return warp.Rm(&warp.RmCfg{
+			Action: func(c *cli.Context) (err error) {
+				t := commandInvoked(c)
+				defer t.completed(err)
+				err = warp.Rm(&warp.RmCfg{
 					WorkingDir:   c.GlobalString("cwd"),
 					ConfigPath:   c.GlobalString("config"),
 					PipelinePath: c.Args().First(),
 					ShortNames:   c.Args().Tail(),
 					All:          c.Bool("all"),
 				})
+				return
 			},
 		},
 		{
 			Name:      "gc",
 			Usage:     "Garbage collect stacks, either from one family or all the families",
-			ArgsUsage: "<family>",
-			Action: func(c *cli.Context) error {
-				return warp.Gc(context.Background(), &warp.GcCfg{
-					WorkingDir: c.GlobalString("cwd"),
-					ConfigPath: c.GlobalString("config"),
-					Family:     c.Args().First(),
+			ArgsUsage: "[family]",
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "preserve_pvc",
+					Usage: "Preserve persistent volume claims.  Overrides the default PVC behavior.",
+				},
+				cli.BoolFlag{
+					Name:  "discard_pvc",
+					Usage: "Discard persistent volume claims as well.  Overrides the default PVC behavior.",
+				},
+			},
+			Action: func(c *cli.Context) (err error) {
+				t := commandInvoked(c)
+				defer t.completed(err)
+				err = warp.Gc(context.Background(), &warp.GcCfg{
+					WorkingDir:                     c.GlobalString("cwd"),
+					ConfigPath:                     c.GlobalString("config"),
+					Family:                         c.Args().First(),
+					PreservePersistentVolumeClaims: c.Bool("preserve_pvc"),
+					DiscardPersistentVolumeClaims:  c.Bool("discard_pvc"),
 				})
+				return
 			},
 		},
 	}

@@ -14,12 +14,17 @@ import (
 )
 
 type Logger struct {
-	Writer io.Writer
+	Writer      io.Writer
+	interactive bool
 }
 
 var formatPrefix = color.New(color.Bold).SprintFunc()
 var formatWarningPrefix = color.New(color.FgMagenta).SprintFunc()
 var formatErrorPrefix = color.New(color.FgRed).SprintFunc()
+
+func (l *Logger) SetInteractive(int bool) {
+	l.interactive = int
+}
 
 // Info logs an info message for the given log domain.
 func (l *Logger) Info(domain string, message string, args ...interface{}) {
@@ -81,6 +86,10 @@ func (l *Logger) PipeReader(domain string, r io.Reader) {
 }
 
 func (l *Logger) printf(message string, args ...interface{}) {
+	if l.interactive {
+		return
+	}
+
 	w := l.Writer
 	if w == nil {
 		w = os.Stdout

@@ -4,10 +4,12 @@ package env
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/avast/retry-go"
 	"github.com/hchauvin/warp/pkg/k8s"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"regexp"
 	"strings"
 )
 
@@ -19,9 +21,13 @@ func (funcs *templateFuncs) k8sServiceAddress(
 ) (string, error) {
 	var selector string
 	if strings.Contains(service, "=") {
-		selector = k8s.Labels{
-			k8s.StackLabel: funcs.name.DNSName(),
-		}.String() + "," + service
+		if strings.HasPrefix(service, "::") {
+			selector = service[2:]
+		} else {
+			selector = k8s.Labels{
+				k8s.StackLabel: funcs.name.DNSName(),
+			}.String() + "," + service
+		}
 	} else {
 		selector = k8s.Labels{
 			k8s.StackLabel:   funcs.name.DNSName(),
@@ -40,19 +46,83 @@ func (funcs *templateFuncs) k8sServiceAddress(
 	return fmt.Sprintf("127.0.0.1:%d", port), nil
 }
 
+func (funcs *templateFuncs) k8sServiceName(
+	ctx context.Context,
+	namespace string,
+	service string,
+) (string, error) {
+	var selector string
+	if strings.Contains(service, "=") {
+		if strings.HasPrefix(service, "::") {
+			selector = service[2:]
+		} else {
+			selector = k8s.Labels{
+				k8s.StackLabel: funcs.name.DNSName(),
+			}.String() + "," + service
+		}
+	} else {
+		selector = k8s.Labels{
+			k8s.StackLabel:   funcs.name.DNSName(),
+			k8s.ServiceLabel: service,
+		}.String()
+	}
+	name, err := funcs.k8sClient.ServiceName(ctx,
+		k8s.ServiceSpec{
+			Namespace: namespace,
+			Labels:    selector,
+		})
+	if err != nil {
+		return "", err
+	}
+	return name, nil
+}
+
 func (funcs *templateFuncs) k8sConfigMapKey(
 	ctx context.Context,
 	namespace string,
 	name string,
 	key string,
 ) (string, error) {
-	return funcs.k8sDataKey(
-		ctx,
-		"configMap",
-		namespace,
-		name,
-		key,
-	)
+	var configMap corev1.ConfigMap
+	err := retry.Do(func() error {
+		list, err := funcs.k8sClient.Clientset.CoreV1().ConfigMaps(namespace).List(metav1.ListOptions{
+			LabelSelector: k8s.Labels{
+				k8s.StackLabel: funcs.name.DNSName(),
+			}.String(),
+		})
+		if err != nil {
+			return err
+		}
+		re := regexp.MustCompile("^" + funcs.name.DNSName() + "-" + name + "-[a-z0-9]+$")
+		var secretNames []string
+		for _, cfgmap := range list.Items {
+			if re.MatchString(cfgmap.Name) {
+				secretNames = append(secretNames, cfgmap.Name)
+				configMap = cfgmap
+			}
+		}
+		if len(secretNames) == 0 {
+			return fmt.Errorf("no matching config map found")
+		}
+		if len(secretNames) > 1 {
+			return retry.Unrecoverable(fmt.Errorf("multiple matching config maps found: %s", strings.Join(secretNames, " ")))
+		}
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+
+	val, ok := configMap.Data[key]
+	if !ok {
+		keys := make([]string, 0, len(configMap.Data))
+		for key := range configMap.Data {
+			keys = append(keys, key)
+		}
+		return "", fmt.Errorf("key '%s' was not found in config map %s; keys: [%s]", key, configMap.Name, strings.Join(keys, " "))
+	}
+
+	return val, nil
 }
 
 func (funcs *templateFuncs) k8sSecretKey(
@@ -61,78 +131,44 @@ func (funcs *templateFuncs) k8sSecretKey(
 	name string,
 	key string,
 ) (string, error) {
-	return funcs.k8sDataKey(
-		ctx,
-		"secret",
-		namespace,
-		name,
-		key,
-	)
-}
-
-func (funcs *templateFuncs) k8sDataKey(
-	ctx context.Context,
-	kind string,
-	namespace string,
-	name string,
-	key string,
-) (string, error) {
-	var val string
+	var secret corev1.Secret
 	err := retry.Do(func() error {
-		cmd, err := funcs.k8sClient.KubectlCommandContext(
-			ctx,
-			"get",
-			"--namespace",
-			namespace,
-			"-l",
-			k8s.Labels{
+		list, err := funcs.k8sClient.Clientset.CoreV1().Secrets(namespace).List(metav1.ListOptions{
+			LabelSelector: k8s.Labels{
 				k8s.StackLabel: funcs.name.DNSName(),
-				k8s.NameLabel:  name,
 			}.String(),
-			"-o=json",
-			kind)
+		})
 		if err != nil {
 			return err
 		}
-		out, err := cmd.Output()
-		if err != nil {
-			return err
-		}
-
-		var resource map[string]interface{}
-		if err := json.Unmarshal(out, &resource); err != nil {
-			return retry.Unrecoverable(fmt.Errorf("cannot unmarshal output of 'kubectl get': %v; full output: <<< %s >>>", err, out))
-		}
-
-		var recoverable bool
-		val, recoverable, err = parseK8sData(resource, key)
-		if err != nil {
-			if recoverable {
-				return err
+		re := regexp.MustCompile("^" + funcs.name.DNSName() + "-" + name + "(-[a-z0-9]+)?$")
+		var secretNames []string
+		for _, sec := range list.Items {
+			if re.MatchString(sec.Name) {
+				secretNames = append(secretNames, sec.Name)
+				secret = sec
 			}
-			return retry.Unrecoverable(fmt.Errorf("cannot parse output of 'kubectl get': %v; full output: <<< %s >>>", err, out))
 		}
-
+		if len(secretNames) == 0 {
+			return fmt.Errorf("no matching secret found")
+		}
+		if len(secretNames) > 1 {
+			return retry.Unrecoverable(fmt.Errorf("multiple matching secrets found: %s", strings.Join(secretNames, " ")))
+		}
 		return nil
 	})
 	if err != nil {
 		return "", err
 	}
-	return val, nil
-}
 
-func parseK8sData(resource map[string]interface{}, key string) (val string, recoverable bool, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("%v", r)
+	val, ok := secret.Data[key]
+	if !ok {
+		keys := make([]string, 0, len(secret.Data))
+		for key := range secret.Data {
+			keys = append(keys, key)
 		}
-	}()
-
-	items := resource["items"].([]interface{})
-	if len(items) == 0 {
-		return "", true, fmt.Errorf("expected at least one resource matching the selector")
+		return "", fmt.Errorf("key '%s' was not found in secret %s; keys: [%s]", key, secret.Name, strings.Join(keys, " "))
 	}
 
-	val = items[0].(map[string]interface{})["data"].(map[string]interface{})[key].(string)
-	return val, true, nil
+	return string(val), nil
 }

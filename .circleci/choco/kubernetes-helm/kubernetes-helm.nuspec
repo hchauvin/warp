@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>kubernetes-helm</id>
+    <version>3.0.1</version>
+    <title>kubernetes-helm (Install)</title>
+    <authors>The Helm authors</authors>
+    <projectUrl>https://github.com/helm/helm</projectUrl>
+    <licenseUrl>https://github.com/helm/helm/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/helm/helm</projectSourceUrl>
+    <summary>The Kubernetes Package Manager</summary>
+    <description>Helm is a tool for managing Charts. Charts are packages of pre-configured Kubernetes resources.</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

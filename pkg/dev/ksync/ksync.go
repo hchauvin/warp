@@ -20,14 +20,14 @@ import (
 
 const logDomain = "dev.ksync"
 
-func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
+func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name names.Name, k8sClient *k8s.K8s) error {
 	ksyncPath, err := cfg.ToolPath(config.Ksync)
 	if err != nil {
 		return err
 	}
 
 	var createg errgroup.Group
-	for _, e := range pipeline.Dev.Ksync {
+	for _, e := range ksync {
 		e := e
 		createg.Go(func() error {
 			args := []string{

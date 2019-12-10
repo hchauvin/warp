@@ -7,15 +7,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/hchauvin/name_manager/pkg/name_manager"
+	"github.com/hchauvin/warp/pkg/batches"
 	"github.com/hchauvin/warp/pkg/config"
+	"github.com/hchauvin/warp/pkg/deploy"
 	"github.com/hchauvin/warp/pkg/k8s"
+	"github.com/hchauvin/warp/pkg/lint"
+	"github.com/hchauvin/warp/pkg/log/interactive"
 	"github.com/hchauvin/warp/pkg/pipelines"
+	run_batch "github.com/hchauvin/warp/pkg/run/batch"
+	"github.com/hchauvin/warp/pkg/run/batch/fsreporter"
 	"github.com/hchauvin/warp/pkg/stacks"
 	"github.com/hchauvin/warp/pkg/stacks/names"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -23,6 +27,34 @@ import (
 )
 
 const logDomain = "warp"
+
+type LintCfg struct {
+	WorkingDir   string
+	ConfigPath   string
+	PipelinePath string
+}
+
+func Lint(ctx context.Context, lintCfg *LintCfg) error {
+	cfg, err := readConfig(lintCfg.WorkingDir, lintCfg.ConfigPath)
+	if err != nil {
+		return err
+	}
+
+	pipeline, err := pipelines.Read(cfg, lintCfg.PipelinePath)
+	if err != nil {
+		return err
+	}
+
+	if err := pipeline.Expand(cfg); err != nil {
+		return err
+	}
+
+	if err := lint.Lint(ctx, cfg, pipeline); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // HoldConfig gives the configuration for the Hold function.
 type HoldConfig struct {
@@ -32,6 +64,9 @@ type HoldConfig struct {
 	Dev          bool
 	Tail         bool
 	Run          []string
+	Setup        string
+	DumpEnv      string
+	PersistEnv   bool
 	Wait         bool
 	Rm           bool
 }
@@ -49,30 +84,9 @@ func Hold(holdCfg *HoldConfig) error {
 		return err
 	}
 
-	var expandedPipelineFolder string
-	if pipeline.Stack.Name != "" {
-		expandedPipelineFolder = pipeline.Stack.Name
-	} else if pipeline.Stack.Family != "" {
-		expandedPipelineFolder = pipeline.Stack.Family
-	} else {
-		return errors.New("invalid pipeline: neither stack.name nor stack.family is given")
-	}
-	expandedPipelineFolder = cfg.Path(filepath.Join(cfg.OutputRoot, "pipelines", expandedPipelineFolder))
-	if err := os.MkdirAll(expandedPipelineFolder, 0777); err != nil {
+	if err := pipeline.Expand(cfg); err != nil {
 		return err
 	}
-	pipelineYaml, err := yaml.Marshal(pipeline)
-	if err != nil {
-		return err
-	}
-	pipelinePath := filepath.Join(expandedPipelineFolder, "expanded_pipeline.yml")
-	if err := ioutil.WriteFile(
-		pipelinePath,
-		pipelineYaml,
-		0777); err != nil {
-		return err
-	}
-	cfg.Logger().Info("pipelines", "pipeline expanded to '%s'", pipelinePath)
 
 	name, releaseName, err := stacks.Hold(cfg, pipeline)
 	if err != nil {
@@ -107,6 +121,9 @@ func Hold(holdCfg *HoldConfig) error {
 			Dev:              holdCfg.Dev,
 			Tail:             holdCfg.Tail,
 			Run:              holdCfg.Run,
+			Setup:            holdCfg.Setup,
+			DumpEnv:          holdCfg.DumpEnv,
+			PersistEnv:       holdCfg.PersistEnv,
 			WaitForInterrupt: len(holdCfg.Run) == 0 || holdCfg.Wait,
 		}, detachedErrc)
 		if err != nil && err != context.Canceled {
@@ -124,6 +141,120 @@ func Hold(holdCfg *HoldConfig) error {
 		return errors.New(strings.Join(errs, "\n"))
 	}
 	return nil
+}
+
+type DeployCfg struct {
+	WorkingDir   string
+	ConfigPath   string
+	PipelinePath string
+}
+
+func Deploy(ctx context.Context, deployCfg *DeployCfg) error {
+	cfg, err := readConfig(deployCfg.WorkingDir, deployCfg.ConfigPath)
+	if err != nil {
+		return err
+	}
+
+	pipeline, err := pipelines.Read(cfg, deployCfg.PipelinePath)
+	if err != nil {
+		return err
+	}
+
+	if pipeline.Stack.Name == "" {
+		return errors.New("cannot deploy a nameless stack")
+	}
+
+	if err := pipeline.Expand(cfg); err != nil {
+		return err
+	}
+
+	k8sClient, err := k8s.New(cfg)
+	if err != nil {
+		return err
+	}
+	defer k8sClient.Ports.CancelForwarding()
+
+	if err := deploy.Exec(ctx, cfg, pipeline, names.Name{ShortName: pipeline.Stack.Name}, k8sClient); err != nil {
+		return fmt.Errorf("deploy step failed: %v", err)
+	}
+
+	return nil
+}
+
+// BatchCfg configures the Batch function.
+type BatchCfg struct {
+	WorkingDir           string
+	ConfigPath           string
+	BatchPath            string
+	Parallelism          int
+	MaxStacksPerPipeline int
+	Tags                 string
+	Focus                string
+	Bail                 bool
+	Report               string
+	Stream               bool
+}
+
+// Batch executes a batch.
+func Batch(ctx context.Context, batchCfg *BatchCfg) error {
+	cfg, err := readConfig(batchCfg.WorkingDir, batchCfg.ConfigPath)
+	if err != nil {
+		return err
+	}
+
+	batch, err := batches.Read(cfg, batchCfg.BatchPath)
+	if err != nil {
+		return err
+	}
+
+	filteredBatch, err := batch.Filter(batchCfg.Tags, batchCfg.Focus)
+	if err != nil {
+		return err
+	}
+
+	k8sClient, err := k8s.New(cfg)
+	if err != nil {
+		return err
+	}
+	defer k8sClient.Ports.CancelForwarding()
+
+	var reporter run_batch.Reporter
+	if batchCfg.Report == "" {
+		reporter = &run_batch.NoopReporter{}
+	} else {
+		reporter, err = fsreporter.New(batchCfg.Report)
+		if err != nil {
+			return err
+		}
+	}
+
+	var events chan interface{}
+	runBatchDone := make(chan struct{})
+	var interactiveReportDone chan struct{}
+	if !batchCfg.Stream {
+		events = make(chan interface{})
+		interactiveReportDone = make(chan struct{})
+		go func() {
+			defer func() {
+				interactiveReportDone <- struct{}{}
+			}()
+			if err := interactive.Report(cfg.Logger(), events, runBatchDone); err != nil {
+				cfg.Logger().Error("interactive", "%v", err)
+			}
+		}()
+	}
+	err = run_batch.RunBatch(ctx, cfg, filteredBatch, &run_batch.RunBatchOptions{
+		Parallelism:          batchCfg.Parallelism,
+		MaxStacksPerPipeline: batchCfg.MaxStacksPerPipeline,
+		Bail:                 batchCfg.Bail,
+		Reporter:             reporter,
+		Events:               events,
+	}, k8sClient)
+	close(runBatchDone)
+	if interactiveReportDone != nil {
+		<-interactiveReportDone
+	}
+	return err
 }
 
 // RmCfg configures the Rm function.
@@ -171,9 +302,11 @@ func Rm(rmCfg *RmCfg) error {
 }
 
 type GcCfg struct {
-	WorkingDir string
-	ConfigPath string
-	Family     string
+	WorkingDir                     string
+	ConfigPath                     string
+	Family                         string
+	PreservePersistentVolumeClaims bool
+	DiscardPersistentVolumeClaims  bool
 }
 
 func Gc(ctx context.Context, gcCfg *GcCfg) error {
@@ -198,13 +331,21 @@ func Gc(ctx context.Context, gcCfg *GcCfg) error {
 		return err
 	}
 
+	if gcCfg.PreservePersistentVolumeClaims && gcCfg.DiscardPersistentVolumeClaims {
+		return fmt.Errorf("--preserve_pvc and --discard_pvc cannot be both present")
+	}
+	preservePersistentVolumeClaims := cfg.Kubernetes.PreservePVCByDefault
+	if gcCfg.PreservePersistentVolumeClaims {
+		preservePersistentVolumeClaims = true
+	}
+	if gcCfg.DiscardPersistentVolumeClaims {
+		preservePersistentVolumeClaims = false
+	}
+
 	sem := semaphore.NewWeighted(10) // 10 is a sensible default
 	g, ctx := errgroup.WithContext(ctx)
 	for _, name := range nameList {
 		if gcCfg.Family != "" && name.Family != "" {
-			continue
-		}
-		if !name.Free {
 			continue
 		}
 		if err := sem.Acquire(ctx, 1); err != nil {
@@ -215,12 +356,19 @@ func Gc(ctx context.Context, gcCfg *GcCfg) error {
 			defer sem.Release(1)
 
 			if err := nameManager.TryAcquire(name.Family, name.Name); err != nil {
+				cfg.Logger().Info(logDomain+":gc", "BUSY: family=%s shortName=%s", name.Family, name.Name)
 				return nil // Cannot acquire, skip garbage collection
 			}
 			defer nameManager.Release(name.Family, name.Name)
 
-			cfg.Logger().Info(logDomain+":gc", "family=%s shortName=%s", name.Family, name.Name)
-			err := k8sClient.Gc(ctx, cfg, names.Name{Family: name.Family, ShortName: name.Name})
+			cfg.Logger().Info(logDomain+":gc", "PENDING: family=%s shortName=%s", name.Family, name.Name)
+			err := k8sClient.Gc(
+				ctx,
+				cfg,
+				names.Name{Family: name.Family, ShortName: name.Name},
+				&k8s.GcOptions{
+					PreservePersistentVolumeClaims: preservePersistentVolumeClaims,
+				})
 			if err != nil {
 				return err
 			}

@@ -16,14 +16,15 @@ import (
 func Exec(
 	ctx context.Context,
 	cfg *config.Config,
-	pipeline *pipelines.Pipeline,
+	portForward []pipelines.PortForward,
 	name names.Name,
 	k8sClient *k8s.K8s,
 ) error {
 	var g errgroup.Group
-	for _, spec := range pipeline.Dev.PortForward {
+	for _, spec := range portForward {
+		spec := spec
 		g.Go(func() error {
-			return k8sClient.Ports.PodPortForward(
+			_, err := k8sClient.Ports.ServicePortForward(
 				k8s.ServiceSpec{
 					Labels: k8s.Labels{
 						k8s.StackLabel: name.DNSName(),
@@ -32,6 +33,7 @@ func Exec(
 				spec.LocalPort,
 				spec.RemotePort,
 			)
+			return err
 		})
 	}
 	return g.Wait()

@@ -33,17 +33,35 @@ func Exec(
 	imageRefs container.ImageRefs,
 	k8sClient *k8s.K8s,
 ) error {
+	k8sResourcesPath, err := ExpandResources(ctx, cfg, pipeline, name, imageRefs)
+	if err != nil {
+		return err
+	}
+
+	if err := k8sClient.Apply(ctx, k8sResourcesPath, k8s.StackLabel+"="+name.DNSName()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ExpandResources(
+	ctx context.Context,
+	cfg *config.Config,
+	pipeline *pipelines.Pipeline,
+	name names.Name,
+	imageRefs container.ImageRefs,
+) (k8sResourcesPath string, err error) {
 	dnsName := name.DNSName()
 	k := pipeline.Deploy.Kustomize
 
 	overlayFolderPath := filepath.Join(cfg.Path(cfg.OutputRoot), "kustomize", name.String())
 	if err := os.MkdirAll(overlayFolderPath, 0777); err != nil {
-		return err
+		return "", err
 	}
 
 	relativeBase, err := filepath.Rel(overlayFolderPath, cfg.Path(pipeline.Deploy.Kustomize.Path))
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	type m map[string]interface{}
@@ -71,7 +89,7 @@ func Exec(
 				image["newName"] = parts[0]
 				image["newTag"] = parts[1]
 			} else {
-				return fmt.Errorf("invalid image ref '%s'", v)
+				return "", fmt.Errorf("invalid image ref '%s'", v)
 			}
 			images = append(images, image)
 		}
@@ -80,7 +98,7 @@ func Exec(
 
 	overlayYaml, err := yaml.Marshal(overlay)
 	if err != nil {
-		return fmt.Errorf("could not marshal overlay to Yaml: %v", err)
+		return "", fmt.Errorf("could not marshal overlay to Yaml: %v", err)
 	}
 
 	overlayPath := filepath.Join(overlayFolderPath, "kustomization.yml")
@@ -89,26 +107,23 @@ func Exec(
 		overlayYaml,
 		0777)
 	if err != nil {
-		return fmt.Errorf("could not write kustomization overlay '%s': %v", overlayPath, err)
+		return "", fmt.Errorf("could not write kustomization overlay '%s': %v", overlayPath, err)
 	}
 
 	kustomizePath, err := cfg.ToolPath(config.Kustomize)
 	if err != nil {
-		return err
+		return "", err
 	}
-	k8sResourcesPath := filepath.Join(overlayFolderPath, "expanded_resources.yml")
+	k8sResourcesPath = filepath.Join(overlayFolderPath, "expanded_resources.yml")
 	cmd := proc.GracefulCommandContext(ctx, kustomizePath, "build", overlayFolderPath, "-o", k8sResourcesPath)
 	cfg.Logger().Pipe(config.Kustomize.LogDomain(), cmd)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not run kustomize on '%s': %v", overlayFolderPath, err)
+		return "", fmt.Errorf("could not run kustomize on '%s': %v", overlayFolderPath, err)
 	}
 
 	cfg.Logger().Info(logDomain, "kustomization expanded to '%s'", k8sResourcesPath)
 
-	if err := k8sClient.Apply(ctx, k8sResourcesPath, k8s.StackLabel+"="+dnsName); err != nil {
-		return err
-	}
-	return nil
+	return k8sResourcesPath, nil
 }
 
 // CleanUp cleans up/removes all the Kubernetes resources created during a Kustomization

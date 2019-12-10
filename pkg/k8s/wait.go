@@ -14,8 +14,7 @@ import (
 func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name names.Name) error {
 	const subLogDomain = logDomain + ":waitFor:endpoints"
 
-	// Wait for all the services to have at least one endpoint ready
-	services, err := k8s.clientset.CoreV1().Services(k8sNamespace).
+	services, err := k8s.Clientset.CoreV1().Services(k8sNamespace).
 		List(metav1.ListOptions{
 			LabelSelector: Labels{
 				StackLabel: name.DNSName(),
@@ -44,7 +43,12 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 					StackLabel:   name.DNSName(),
 					ServiceLabel: serviceName,
 				}.String()
-				endpoints, err := k8s.clientset.CoreV1().
+
+				if err := k8s.WaitForOnePodRunning(gctx, k8sNamespace, labelSelector); err != nil {
+					return err
+				}
+
+				endpoints, err := k8s.Clientset.CoreV1().
 					Endpoints(k8sNamespace).
 					List(metav1.ListOptions{
 						LabelSelector: labelSelector,
@@ -78,38 +82,155 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 	return nil
 }
 
-// WaitForPods waits for all the pods to be ready
-func (k8s *K8s) WaitForPods(ctx context.Context, k8sNamespace string, name names.Name) error {
-	const subLogDomain = logDomain + ":waitFor:pods"
+// WaitForEndpoints waits for all the services to have at least one ready endpoint.
+func (k8s *K8s) WaitForOnePodPerService(ctx context.Context, k8sNamespace string, name names.Name) error {
+	const subLogDomain = logDomain + ":waitFor:endpoints"
 
+	services, err := k8s.Clientset.CoreV1().Services(k8sNamespace).
+		List(metav1.ListOptions{
+			LabelSelector: Labels{
+				StackLabel: name.DNSName(),
+			}.String(),
+		})
+	if err != nil {
+		return err
+	}
+
+	g, gctx := errgroup.WithContext(ctx)
+	for _, service := range services.Items {
+		service := service
+		serviceName, ok := service.Labels[ServiceLabel]
+		if !ok {
+			k8s.cfg.Logger().Warning(
+				subLogDomain,
+				"service %s|%s does not have the %s label, we cannot wait for at least one of its pods to be ready",
+				service.Namespace,
+				service.Name,
+			)
+			continue
+		}
+		g.Go(func() error {
+			labelSelector := Labels{
+				StackLabel:   name.DNSName(),
+				ServiceLabel: serviceName,
+			}.String()
+
+			if err := k8s.WaitForOnePodRunning(gctx, k8sNamespace, labelSelector); err != nil {
+				return err
+			}
+
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+	return nil
+}
+
+type podStatus string
+
+const (
+	scheduled   = podStatus("scheduled")
+	autoscaling = podStatus("autoscaling")
+	pulling     = podStatus("pulling")
+	pending     = podStatus("pending")
+	running     = podStatus("running")
+	failed      = podStatus("failed")
+)
+
+// WaitForPodsAllRunning waits for all the pods to be running.
+func (k8s *K8s) WaitForAllPodsRunning(
+	ctx context.Context,
+	k8sNamespace string,
+	labelSelector string,
+) error {
 	for {
-		pods, err := k8s.clientset.CoreV1().Pods(k8sNamespace).
+		pods, err := k8s.Clientset.CoreV1().Pods(k8sNamespace).
 			List(metav1.ListOptions{
-				LabelSelector: Labels{
-					StackLabel: name.DNSName(),
-				}.String(),
+				LabelSelector: labelSelector,
 			})
 		if err != nil {
 			return err
 		}
-		ready := true
+
+		notRunningCount := 0
+		statusList := make(map[string]podStatus)
 		for _, pod := range pods.Items {
-			if pod.Status.Phase == corev1.PodPending || pod.Status.Phase == corev1.PodFailed {
-				k8s.cfg.Logger().Info(
-					subLogDomain,
-					"pod %s: phase=%s", pod.Name, pod.Status.Phase)
-				ready = false
+			status, err := getPodStatus(&pod)
+			if err != nil {
+				return err
+			}
+			statusList[pod.Name] = status
+			if status != running {
+				notRunningCount++
+				k8s.cfg.Logger().Info(logDomain+":wait", "%s %s\n", pod.Name, status)
 			}
 		}
-		if ready {
+
+		if notRunningCount == 0 {
 			return nil
 		}
-		select {
-		case <-time.After(3 * time.Second):
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
 
-	return nil
+		time.Sleep(3 * time.Second)
+	}
+}
+
+// WaitForPodsAllRunning waits for at least one pod to be running.
+func (k8s *K8s) WaitForOnePodRunning(
+	ctx context.Context,
+	k8sNamespace string,
+	labelSelector string,
+) error {
+	for {
+		pods, err := k8s.Clientset.CoreV1().Pods(k8sNamespace).
+			List(metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
+		if err != nil {
+			return err
+		}
+		statusList := make(map[string]podStatus)
+		for _, pod := range pods.Items {
+			status, err := getPodStatus(&pod)
+			if err != nil {
+				return err
+			}
+			statusList[pod.Name] = status
+			if status == running {
+				return nil
+			}
+		}
+
+		time.Sleep(3 * time.Second)
+	}
+}
+
+func getPodStatus(pod *corev1.Pod) (podStatus, error) {
+	switch pod.Status.Phase {
+	case corev1.PodPending:
+		switch pod.Status.Reason {
+		case "Scheduled":
+			return scheduled, nil
+
+		case "Pulling":
+			return pulling, nil
+
+		default:
+			return pending, nil
+		}
+
+	case corev1.PodRunning:
+		fallthrough
+	case corev1.PodSucceeded:
+		return running, nil
+
+	case corev1.PodFailed:
+		return failed, nil
+
+	case corev1.PodUnknown:
+		fallthrough
+	default:
+		panic(fmt.Sprintf("unrecognized pod status %v", pod.Status.Phase))
+	}
 }

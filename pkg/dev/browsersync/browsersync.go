@@ -25,21 +25,17 @@ const logDomain = "dev.browsersync"
 func Exec(
 	ctx context.Context,
 	cfg *config.Config,
-	pipeline *pipelines.Pipeline,
+	browserSync []pipelines.BrowserSync,
 	name names.Name,
 	k8sClient *k8s.K8s,
 ) error {
-	if len(pipeline.Dev.BrowserSync) == 0 {
-		return nil
-	}
-
 	browserSyncPath, err := cfg.ToolPath(config.BrowserSync)
 	if err != nil {
 		return err
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
-	for _, spec := range pipeline.Dev.BrowserSync {
+	for _, spec := range browserSync {
 		spec := spec
 		g.Go(func() error {
 			localPort, err := k8sClient.Ports.Port(

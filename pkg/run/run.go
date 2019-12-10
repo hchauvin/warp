@@ -40,18 +40,29 @@ func Exec(
 			return fmt.Errorf("unrecognized run '%s'", specName)
 		}
 
-		if len(spec.Before) > 0 {
-			if err := execHooks(ctx, cfg, name, specName, spec.Before, k8sClient); err != nil {
+		var extraEnv []string
+		if spec.Setup != "" {
+			setup, err := pipeline.Setups.Get(spec.Setup)
+			if err != nil {
 				return err
 			}
+
+			if len(setup.Before) > 0 {
+				if err := ExecHooks(ctx, cfg, name, specName, setup.Before, nil, k8sClient); err != nil {
+					return err
+				}
+			}
+
+			extraEnv = setup.Env
 		}
 
-		err := execBaseCommand(
+		err := ExecBaseCommand(
 			ctx,
 			cfg,
 			name,
 			specName,
 			&spec.BaseCommand,
+			extraEnv,
 			k8sClient,
 		)
 		if err != nil {
@@ -62,12 +73,13 @@ func Exec(
 	return nil
 }
 
-func execHooks(
+func ExecHooks(
 	ctx context.Context,
 	cfg *config.Config,
 	name names.Name,
 	specName string,
 	hooks []pipelines.CommandHook,
+	sharedEnv []string,
 	k8sClient *k8s.K8s,
 ) error {
 	done := make(map[string]chan struct{})
@@ -98,7 +110,7 @@ func execHooks(
 				defer cancel()
 			}
 
-			if err := execHook(hookCtx, cfg, name, specName, i, &hook, k8sClient); err != nil {
+			if err := execHook(hookCtx, cfg, name, specName, i, &hook, sharedEnv, k8sClient); err != nil {
 				return fmt.Errorf("hook #%d: %s", i, err)
 			}
 
@@ -118,6 +130,7 @@ func execHook(
 	specName string,
 	i int,
 	hook *pipelines.CommandHook,
+	sharedEnv []string,
 	k8sClient *k8s.K8s,
 ) error {
 	if hook.WaitFor != nil {
@@ -125,25 +138,35 @@ func execHook(
 		if err != nil {
 			return err
 		}
+		labelSelector := k8s.Labels{
+			k8s.StackLabel: name.DNSName(),
+		}.String()
 		for _, resource := range hook.WaitFor.Resources {
-			if resource == pipelines.Endpoints {
+			switch resource {
+			case pipelines.OnePodPerService:
+				if err := k.WaitForOnePodPerService(ctx, "default", name); err != nil {
+					return err
+				}
+			case pipelines.Endpoints:
 				if err := k.WaitForEndpoints(ctx, "default", name); err != nil {
 					return err
 				}
-			}
-			if resource == pipelines.Pods {
-				if err := k.WaitForPods(ctx, "default", name); err != nil {
+			case pipelines.Pods:
+				if err := k.WaitForAllPodsRunning(ctx, "default", labelSelector); err != nil {
 					return err
 				}
+			default:
+				return fmt.Errorf("invalid waitFor resource specifier: '%s'", resource)
 			}
 		}
 	} else if hook.Run != nil {
-		err := execBaseCommand(
+		err := ExecBaseCommand(
 			ctx,
 			cfg,
 			name,
 			fmt.Sprintf("%s:before(%d)", specName, i),
 			hook.Run,
+			sharedEnv,
 			k8sClient,
 		)
 		if err != nil {
@@ -158,12 +181,13 @@ func execHook(
 	return nil
 }
 
-func execBaseCommand(
+func ExecBaseCommand(
 	ctx context.Context,
 	cfg *config.Config,
 	name names.Name,
 	specName string,
 	spec *pipelines.BaseCommand,
+	sharedEnv []string,
 	k8sClient *k8s.K8s,
 ) error {
 	if len(spec.Command) == 0 {
@@ -174,13 +198,32 @@ func execBaseCommand(
 		cmd.Dir = cfg.Path(spec.WorkingDir)
 	}
 	trans := env.NewTranformer(cfg, name, k8sClient)
-	extraEnv := make([]string, len(spec.Env))
+	extraEnv := make([]string, len(sharedEnv)+len(spec.Env))
+	g, gctx := errgroup.WithContext(ctx)
+	for i, e := range sharedEnv {
+		i, e := i, e
+		g.Go(func() error {
+			ans, err := trans.Get(gctx, e)
+			if err != nil {
+				return fmt.Errorf("cannot transform env var '%s': %v", e, err)
+			}
+			extraEnv[i] = ans
+			return nil
+		})
+	}
 	for i, e := range spec.Env {
-		ans, err := trans.Get(ctx, e)
-		if err != nil {
-			return fmt.Errorf("cannot transform env var '%s': %v", e, err)
-		}
-		extraEnv[i] = ans
+		i, e := i, e
+		g.Go(func() error {
+			ans, err := trans.Get(gctx, e)
+			if err != nil {
+				return fmt.Errorf("cannot transform env var '%s': %v", e, err)
+			}
+			extraEnv[len(sharedEnv)+i] = ans
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 	cfg.Logger().Info("run:"+specName+":env", "%s", strings.Join(extraEnv, "\n"))
 	cmd.Env = append(os.Environ(), extraEnv...)

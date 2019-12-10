@@ -4,6 +4,11 @@
 // Copyright (c) 2019 Hadrien Chauvin
 package pipelines
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Pipeline defines a deployment and test pipeline.  Its scope is
 // everything beyond the build step and unit/integration tests.
 type Pipeline struct {
@@ -18,23 +23,44 @@ type Pipeline struct {
 	// controlled for.
 	Bases []string `yaml:"bases,omitempty"`
 
+	Lint Lint `yaml:"lint"`
+
 	// Deploy describes the deployment steps.
 	Deploy Deploy `yaml:"deploy"`
 
-	// Dev describes the dev tools.  They are enabled when running
-	// a pipeline in dev mode.  They can be used interactively,
-	// during local development or debugging.
-	Dev Dev `yaml:"dev"`
+	Setups Setups `yaml:"setups,omitempty" patchStrategy:"merge" patchMergeKey:"name" validate:"dive"`
 
 	// Command describes the command configurations.  Command configurations
 	// are used to spawn processes that can access the stack, with
 	// port forwarding and other mechanisms, between the setup and
 	// the tear down of the stack.
-	Commands []Command `yaml:"commands,omitempty" patchStrategy:"merge" patchMergeKey:"names" validate:"dive"`
+	Commands []Command `yaml:"commands,omitempty" patchStrategy:"merge" patchMergeKey:"name" validate:"dive"`
 
 	// Path is the absolute path to the pipeline definition.  It is
 	// resolved by Read.
 	Path string `yaml:"-"`
+}
+
+type Setups []Setup
+
+func (setups Setups) Get(name string) (*Setup, error) {
+	for _, setup := range setups {
+		if setup.Name == name {
+			return &setup, nil
+		}
+	}
+	return nil, fmt.Errorf(
+		"cannot find setup named '%s'; available setups: %s",
+		name,
+		strings.Join(setups.Names(), " "))
+}
+
+func (setups Setups) Names() []string {
+	names := make([]string, len(setups))
+	for i, setup := range setups {
+		names[i] = setup.Name
+	}
+	return names
 }
 
 // Stack gives the identity of the stacks created by the pipeline.
@@ -53,15 +79,27 @@ type Stack struct {
 	Variant string `yaml:"variant,omitempty"`
 }
 
+type Lint struct {
+	DisableHelmKubeScore      bool `yaml:"disableHelmKubeScore"`
+	DisableKustomizeKubeScore bool `yaml:"disableKustomizeKubeScore"`
+}
+
 // Deploy describes the deployment steps.
 type Deploy struct {
 	// Container describes the deployment steps relative to
 	// containerization.
 	Container *Container `yaml:"container,omitempty"`
 
+	// Helm describes the Helm chart to use to deploy to
+	// a Kubernetes cluster.  If it is omitted,
+	// the stack is not deployed to Kubernetes with helm.
+	//
+	// The Helm step always happens before the Kustomize step.
+	Helm *Helm `yaml:"helm,omitempty"`
+
 	// Kustomize describes the Kustomize config to use to
 	// deploy to a Kubernetes cluster.  If it is omitted,
-	// the stack is not deployed to Kubernetes.
+	// the stack is not deployed to Kubernetes with kustomize.
 	Kustomize *Kustomize `yaml:"kustomize,omitempty"`
 }
 
@@ -101,6 +139,20 @@ type ContainerManifestEntry struct {
 	Ref string `json:"ref"`
 }
 
+type Helm struct {
+	// Path to the helm chart, relative to the root given in the
+	// warprc.toml configuration.
+	Path string `yaml:"path" validate:"required"`
+
+	// Args are additional arguments to pass to the Helm CLI.
+	Args []string `yaml:"args"`
+
+	// Selector is a label to use with `kubectl apply` for resource pruning.
+	// If not specified, it defaults to `warp.stack=<stack name>`, where
+	// `<stack name>` is the name of the stack.
+	LabelSelector string `yaml:"labelSelector"`
+}
+
 // Kustomize describes the Kustomize config to use to
 // deploy to a Kubernetes cluster.
 type Kustomize struct {
@@ -108,9 +160,39 @@ type Kustomize struct {
 	// in the warprc.toml configuration.
 	Path string `yaml:"path" validate:"required"`
 
-	// Disable prefixing the names of Kubernetes resources with
-	// the names of the Stack.
+	// DisableNamePrefix Disables prefixing the names of Kubernetes
+	// resources with the names of the Stack.
 	DisableNamePrefix bool `yaml:"disableNamePrefix"`
+}
+
+type Setup struct {
+	// Name is the name of the environment.
+	Name string `yaml:"name" validate:"required,name"`
+
+	// Bases contains base files to merge into this pipeline, using
+	// strategic merging.  The file names must be relative to the
+	// root given in the warprc.toml configuration.
+	//
+	// Loops in the inheritance chain are forbidden and explicitly
+	// controlled for.
+	Bases []string `yaml:"bases,omitempty"`
+
+	// Before is a list of command hooks that are executed concurrently
+	// before the command itself is actually executed.  If any of the
+	// hook fails, the other hooks and the command itself are skipped.
+	// The execution is eventually reported as a failure.
+	Before []CommandHook `yaml:"before,omitempty" validate:"dive"`
+
+	// Env is a list of environment variables, specified as "name=value"
+	// strings.  The values can be templated.  The template functions
+	// allow, e.g., to request service addresses, configuration values,
+	// that come from the deployment stage.
+	Env []string `yaml:"env"`
+
+	// Dev describes the dev tools.  They are enabled when running
+	// a pipeline in dev mode.  They can be used interactively,
+	// during local development or debugging.
+	Dev Dev `yaml:"dev"`
 }
 
 // BaseCommand gives instructions to set up the environment and invoke
@@ -148,11 +230,7 @@ type Command struct {
 	// They can be used to organize run configurations.
 	Tags []string `yaml:"tags" validate:"name"`
 
-	// Before is a list of command hooks that are executed concurrently
-	// before the command itself is actually executed.  If any of the
-	// hook fails, the other hooks and the command itself are skipped.
-	// The execution is eventually reported as a failure.
-	Before []CommandHook `yaml:"before,omitempty" validate:"dive"`
+	Setup string `yaml:"setup"`
 }
 
 type CommandHook struct {
@@ -193,6 +271,9 @@ const (
 
 	// Wait for all the pods in the stack to be ready.
 	Pods = WaitForResourceKind("pods")
+
+	// Wait for at least one pod up and running per service.
+	OnePodPerService = WaitForResourceKind("onePodPerService")
 )
 
 type HTTPGet struct {
