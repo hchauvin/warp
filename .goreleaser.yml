@@ -1,7 +1,7 @@
 builds:
   -
     id: warp
-    main: ./cmd/warp/warp.go
+    main: ./cmd/warp
     binary: bin/warp
     goos:
       - linux
