@@ -1,13 +1,18 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
 package batch
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"github.com/dustinkirkland/golang-petname"
 	"github.com/hchauvin/name_manager/pkg/name_manager"
 	"github.com/hchauvin/warp/pkg/batches"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/deploy"
 	"github.com/hchauvin/warp/pkg/k8s"
+	"github.com/hchauvin/warp/pkg/log/interactive"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/proc"
 	"github.com/hchauvin/warp/pkg/run"
@@ -17,17 +22,62 @@ import (
 	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
+	"io"
 	"os"
 	"strings"
 	"sync"
+	"time"
 )
 
 const logDomain = "batch"
 
 type RunBatchOptions struct {
-	Parallelism int
+	Parallelism          int
 	MaxStacksPerPipeline int
-	Bail bool
+	Bail                 bool
+	Reporter             Reporter
+	Events               chan<- interface{}
+}
+
+type Reporter interface {
+	EnvironmentSetupResult(result *EnvironmentSetupResult)
+	CommandOutput(info *CommandInfo) (io.WriteCloser, error)
+	CommandResult(result *CommandResult)
+	Finalize() error
+}
+
+type EnvironmentInfo struct {
+	BatchID      string
+	StackName    string
+	PipelinePath string
+}
+
+type EnvironmentSetupResult struct {
+	EnvironmentInfo
+	SetupType EnvironmentSetupType
+	Err       *string
+	Started   time.Time
+	Completed time.Time
+}
+
+type EnvironmentSetupType string
+
+const (
+	EnvironmentDeployment     = EnvironmentSetupType("deployment")
+	EnvironmentInitialization = EnvironmentSetupType("initialization")
+)
+
+type CommandInfo struct {
+	BatchID string
+	Name    string
+	Tries   int
+}
+
+type CommandResult struct {
+	CommandInfo
+	Err       *string
+	Started   time.Time
+	Completed time.Time
 }
 
 type completionStatus int
@@ -45,6 +95,12 @@ func RunBatch(
 	options *RunBatchOptions,
 	k8sClient *k8s.K8s,
 ) error {
+	defer func() {
+		if err := options.Reporter.Finalize(); err != nil {
+			cfg.Logger().Error(logDomain, "cannot finalize report: %v", err)
+		}
+	}()
+
 	completed := make(map[string]chan struct{})
 	completionStatus := make(map[string]completionStatus)
 	var completionMut sync.RWMutex
@@ -53,11 +109,16 @@ func RunBatch(
 		completed[cmd.Name] = make(chan struct{})
 	}
 
+	batchID := petname.Generate(2, "-")
 	runner := &runner{
-		cfg: cfg,
+		cfg:       cfg,
 		k8sClient: k8sClient,
-		options: options,
+		options:   options,
 		pipelines: make(map[string]*pipeline),
+		sharedEnv: []string{
+			"BATCH_ID=" + batchID,
+		},
+		batchID: batchID,
 	}
 	defer runner.clean()
 
@@ -77,7 +138,7 @@ func RunBatch(
 					batchPipeline: batchPipeline,
 					pipeline:      p,
 					releasec:      make(chan struct{}),
-					stacks: make(map[string]*stackInfo),
+					stacks:        make(map[string]*stackInfo),
 				}
 				return nil
 			})
@@ -159,34 +220,37 @@ func RunBatch(
 }
 
 type runner struct {
-	cfg *config.Config
-	k8sClient *k8s.K8s
-	options *RunBatchOptions
-	pipelines map[string]*pipeline
-	stacksMut sync.Mutex
-	errored []string
+	cfg        *config.Config
+	k8sClient  *k8s.K8s
+	options    *RunBatchOptions
+	pipelines  map[string]*pipeline
+	stacksMut  sync.Mutex
+	errored    []string
 	erroredMut sync.Mutex
+	sharedEnv  []string
+	batchID    string
 }
 
 type pipeline struct {
-	batchPipeline batches.Pipeline
-	pipeline *pipelines.Pipeline
-	stackCount atomic.Int64
+	batchPipeline  batches.Pipeline
+	pipeline       *pipelines.Pipeline
+	stackCount     atomic.Int64
 	freeStackCount atomic.Int64
-	releasec chan struct{}
-	stacks map[string]*stackInfo
+	releasec       chan struct{}
+	stacks         map[string]*stackInfo
 }
 
 type stackInfo struct {
-	pipelineName string
-	name names.Name
-	release name_manager.ReleaseFunc
-	trans *env.Transformer
+	pipelineName  string
+	name          names.Name
+	release       name_manager.ReleaseFunc
+	trans         *env.Transformer
 	exclusiveLock bool
-	usageCount int
-	deployed atomic.Bool
-	before atomic.Bool
-	initialized chan struct{}
+	usageCount    int
+	deployed      atomic.Bool
+	before        atomic.Bool
+	deployedc     chan struct{}
+	initializedc  chan struct{}
 }
 
 func (runner *runner) clean() {
@@ -265,13 +329,14 @@ func (runner *runner) hold(ctx context.Context, pipelineName string, exclusive b
 	}
 
 	stack = &stackInfo{
-		pipelineName: pipelineName,
-		name: *name,
-		release: release,
-		trans: env.NewTranformer(runner.cfg, *name, runner.k8sClient),
-		usageCount: 1,
+		pipelineName:  pipelineName,
+		name:          *name,
+		release:       release,
+		trans:         env.NewTranformer(runner.cfg, *name, runner.k8sClient),
+		usageCount:    1,
 		exclusiveLock: exclusive,
-		initialized: make(chan struct{}),
+		deployedc:     make(chan struct{}),
+		initializedc:  make(chan struct{}),
 	}
 	pipeline.stacks[name.String()] = stack
 	pipeline.stackCount.Inc()
@@ -293,7 +358,7 @@ func (runner *runner) release(pipelineName, stackName string) {
 	}
 	stack.exclusiveLock = false
 	go func() {
-		<- runner.pipelines[stack.pipelineName].releasec
+		<-runner.pipelines[stack.pipelineName].releasec
 	}()
 }
 
@@ -304,10 +369,14 @@ func (runner *runner) execCommand(
 	k8sClient *k8s.K8s,
 ) error {
 	// Hold the stacks
+	runner.event(interactive.SetStateEvent{
+		Name:  cmd.Name,
+		State: interactive.Started,
+		Stage: "setup",
+	})
 	g, gctx := errgroup.WithContext(ctx)
 	var stacks []*stackInfo
 	var stacksMut sync.Mutex
-	fmt.Printf("YOOO! %v\n", cmd.Pipelines)
 	for _, pipelineName := range cmd.Pipelines {
 		pipelineName := pipelineName
 		g.Go(func() error {
@@ -316,23 +385,62 @@ func (runner *runner) execCommand(
 				return err
 			}
 
+			info := EnvironmentInfo{
+				BatchID:      runner.batchID,
+				StackName:    stack.name.DNSName(),
+				PipelinePath: runner.pipelines[pipelineName].pipeline.Path,
+			}
+
 			if !stack.deployed.Swap(true) {
+				runner.event(interactive.SetStateEvent{
+					Name:  "stack/" + stack.name.DNSName(),
+					State: interactive.Started,
+					Stage: "deploying",
+				})
+				result := EnvironmentSetupResult{
+					EnvironmentInfo: info,
+					SetupType:       EnvironmentDeployment,
+					Started:         time.Now(),
+				}
 				pipeline, err := runner.pipeline(stack.pipelineName)
+				result.Completed = time.Now()
+				result.Err = errToStringPtr(err)
+				runner.options.Reporter.EnvironmentSetupResult(&result)
 				if err != nil {
 					return err
 				}
 				if err := deploy.Exec(gctx, cfg, pipeline.pipeline, stack.name, k8sClient); err != nil {
 					return fmt.Errorf("deploy failed for stack %s: %v", stack.name, err)
 				}
+				close(stack.deployedc)
+			}
+
+			select {
+			case <-gctx.Done():
+				return gctx.Err()
+			case <-stack.deployedc:
 			}
 
 			if !stack.before.Swap(true) {
+				runner.event(interactive.SetStateEvent{
+					Name:  "stack/" + stack.name.DNSName(),
+					State: interactive.Started,
+					Stage: "initializing",
+				})
+				result := EnvironmentSetupResult{
+					EnvironmentInfo: info,
+					SetupType:       EnvironmentInitialization,
+					Started:         time.Now(),
+				}
 				pipeline, err := runner.pipeline(stack.pipelineName)
+				result.Completed = time.Now()
+				result.Err = errToStringPtr(err)
+				runner.options.Reporter.EnvironmentSetupResult(&result)
 				if err != nil {
 					return err
 				}
-				if pipeline.batchPipeline.Env != "" {
-					e, err := pipeline.pipeline.Environments.Get(pipeline.batchPipeline.Env)
+				if pipeline.batchPipeline.Setup != "" {
+					s, err := pipeline.pipeline.Setups.Get(pipeline.batchPipeline.Setup)
 					if err != nil {
 						return err
 					}
@@ -341,20 +449,26 @@ func (runner *runner) execCommand(
 						cfg,
 						stack.name,
 						"before",
-						e.Before,
+						s.Before,
+						nil,
 						runner.k8sClient)
 					if err != nil {
 						return err
 					}
 				}
-				close(stack.initialized)
+				close(stack.initializedc)
 			}
 
 			select {
 			case <-gctx.Done():
 				return gctx.Err()
-			case <-stack.initialized:
+			case <-stack.initializedc:
 			}
+
+			runner.event(interactive.SetStateEvent{
+				Name:  "stack/" + stack.name.DNSName(),
+				State: interactive.Completed,
+			})
 
 			stacksMut.Lock()
 			stacks = append(stacks, stack)
@@ -372,6 +486,11 @@ func (runner *runner) execCommand(
 	}
 
 	// Gather environment variables
+	runner.event(interactive.SetStateEvent{
+		Name:  cmd.Name,
+		State: interactive.Started,
+		Stage: "environment",
+	})
 	var allEnv []string
 	var allEnvMut sync.Mutex
 	g, gctx = errgroup.WithContext(ctx)
@@ -384,12 +503,12 @@ func (runner *runner) execCommand(
 			}
 
 			genv, genvctx := errgroup.WithContext(gctx)
-			if pipeline.batchPipeline.Env != "" {
-				env, err := pipeline.pipeline.Environments.Get(pipeline.batchPipeline.Env)
+			if pipeline.batchPipeline.Setup != "" {
+				setup, err := pipeline.pipeline.Setups.Get(pipeline.batchPipeline.Setup)
 				if err != nil {
 					return err
 				}
-				for _, e := range env.Env {
+				for _, e := range setup.Env {
 					e := e
 					genv.Go(func() error {
 						s, err := stack.trans.Get(genvctx, e)
@@ -411,32 +530,94 @@ func (runner *runner) execCommand(
 	}
 
 	allEnv = append(allEnv, cmd.Env...)
+	allEnv = append(allEnv, runner.sharedEnv...)
 
-	var tries int
-	if cmd.Flaky {
-		tries = 3
+	var maxTries int
+	if cmd.Flaky && !runner.options.Bail {
+		maxTries = 3
 	} else {
-		tries = 1
+		maxTries = 1
 	}
 
 	var err error
+	tries := 1
 	for {
+		stage := ""
+		if tries > 1 {
+			stage = fmt.Sprintf("retry %d/%d", tries-1, maxTries-1)
+		}
+		runner.event(interactive.SetStateEvent{
+			Name:  cmd.Name,
+			State: interactive.Started,
+			Stage: stage,
+		})
+
+		info := CommandInfo{
+			BatchID: runner.batchID,
+			Name:    cmd.Name,
+			Tries:   tries,
+		}
+
 		procCmd := proc.GracefulCommandContext(ctx, cmd.Command[0], cmd.Command[1:]...)
 		if cmd.WorkingDir != "" {
 			procCmd.Dir = cfg.Path(cmd.WorkingDir)
 		}
 
-		cfg.Logger().Info("run:"+cmd.Name+":env", "%s", strings.Join(allEnv, "\n"))
 		procCmd.Env = append(os.Environ(), allEnv...)
-		cfg.Logger().Pipe("run:"+cmd.Name, procCmd)
+
+		{
+			stdout, err := procCmd.StdoutPipe()
+			if err != nil {
+				// This means that Pipe was invoked on a cmd that has either
+				// its os.Stdout already set, or has already been started.
+				// Here, that is a logic error.
+				panic(fmt.Errorf("could not pipe command stdout: %v", err))
+			}
+			stderr, err := procCmd.StderrPipe()
+			if err != nil {
+				// This means that Pipe was invoked on a cmd that has either
+				// its os.Stdout already set, or has already been started.
+				// Here, that is a logic error.
+				panic(fmt.Errorf("could not pipe command stderr: %v", err))
+			}
+			combinedOutput := io.MultiReader(stdout, stderr)
+			go func() {
+				w, err := runner.options.Reporter.CommandOutput(&info)
+				if err != nil {
+					cfg.Logger().Error("run:"+cmd.Name, "%v", err)
+					return
+				}
+				defer w.Close()
+				scanner := bufio.NewScanner(combinedOutput)
+				for scanner.Scan() {
+					cfg.Logger().Info("run:"+cmd.Name, "%s", string(scanner.Bytes()))
+					if _, err := w.Write(append(scanner.Bytes(), '\n')); err != nil {
+						cfg.Logger().Error("run:"+cmd.Name, "could not write to log file: %v", err)
+						return
+					}
+				}
+			}()
+		}
+
+		result := CommandResult{
+			CommandInfo: info,
+			Started:     time.Now(),
+		}
 		err = procCmd.Run()
+		result.Completed = time.Now()
+
 		if err == nil {
+			cfg.Logger().Info("run:"+cmd.Name, "SUCCESS")
+			runner.options.Reporter.CommandResult(&result)
 			break
 		}
-		tries--
-		if tries == 0 {
+		cfg.Logger().Error("run:"+cmd.Name, "%v", err)
+		result.Err = errToStringPtr(err)
+		runner.options.Reporter.CommandResult(&result)
+		if tries == maxTries {
 			break
 		}
+		tries++
 	}
 
 	if err != nil {
@@ -447,6 +628,10 @@ func (runner *runner) execCommand(
 		runner.errored = append(runner.errored, cmd.Name)
 		runner.erroredMut.Unlock()
 	}
+	runner.event(interactive.SetStateEvent{
+		Name:  cmd.Name,
+		State: interactive.Completed,
+	})
 	return nil
 }
 
@@ -456,4 +641,18 @@ func (runner *runner) pipeline(name string) (*pipeline, error) {
 		return nil, fmt.Errorf("cannot find pipeline with name '%s'", name)
 	}
 	return pipeline, nil
+}
+
+func (runner *runner) event(event interface{}) {
+	if runner.options.Events != nil {
+		runner.options.Events <- event
+	}
+}
+
+func errToStringPtr(err error) *string {
+	if err == nil {
+		return nil
+	}
+	s := err.Error()
+	return &s
 }

@@ -35,8 +35,12 @@ type Config struct {
 	// cluster used for deployment.
 	Kubernetes *Kubernetes
 
+	Telemetry Telemetry
+
 	// WorkspaceDir is the workspace directory.
 	WorkspaceDir string `toml:"-"`
+
+	logger log.Logger
 }
 
 // Path resolves a path relative to the workspace dir.
@@ -49,7 +53,7 @@ func (cfg *Config) Path(path string) string {
 
 // Logger gives the logger associated with this configuration.
 func (cfg *Config) Logger() *log.Logger {
-	return &log.Logger{}
+	return &cfg.logger
 }
 
 func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
@@ -71,6 +75,8 @@ type Tool string
 
 const (
 	Kustomize   = Tool("Kustomize")
+	Helm        = Tool("Helm")
+	KubeScore   = Tool("KubeScore")
 	Kubectl     = Tool("Kubectl")
 	Ksync       = Tool("Ksync")
 	BrowserSync = Tool("BrowserSync")
@@ -93,8 +99,10 @@ type ToolInfo struct {
 
 var toolDefaultPaths = map[Tool]string{
 	Kustomize:   "kustomize",
+	Helm:        "helm",
 	Kubectl:     "kubectl",
 	Ksync:       "ksync",
+	KubeScore:   "kube-score",
 	BrowserSync: "browser-sync",
 	Docker:      "docker",
 }
@@ -114,7 +122,27 @@ type Kubernetes struct {
 	// https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/#the-kubeconfig-environment-variable
 	Kubeconfig []string
 
+	// Resources is a list of custom resources to be managed by warp,
+	// especially during garbage collection.
+	Resources []Resource
+
+	// PreservePVCByDefault should be set to true to enable preserving
+	// persistent volume claims by default during garbage collection.
+	PreservePVCByDefault bool
+
 	// KubeconfigEnvVar is the value of the KUBECONFIG environment
 	// variable that is created from Kubeconfig.
 	KubeconfigEnvVar string `toml:"-"`
+}
+
+// Resource identifies custom resources by group, version, and kind.
+type Resource struct {
+	Group    string
+	Version  string
+	Resource string
+}
+
+type Telemetry struct {
+	// Connection string for the telemetry module
+	ConnectionString string
 }

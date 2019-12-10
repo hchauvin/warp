@@ -22,25 +22,31 @@ func Exec(
 	cfg *config.Config,
 	pipeline *pipelines.Pipeline,
 	name names.Name,
+	setupName string,
 	k8sClient *k8s.K8s,
 ) error {
+	setup, err := pipeline.Setups.Get(setupName)
+	if err != nil {
+		return err
+	}
+
 	g, gctx := errgroup.WithContext(ctx)
 
-	if len(pipeline.Dev.Ksync) > 0 {
+	if len(setup.Dev.Ksync) > 0 {
 		g.Go(func() error {
-			return ksync.Exec(gctx, cfg, pipeline, name, k8sClient)
+			return ksync.Exec(gctx, cfg, setup.Dev.Ksync, name, k8sClient)
 		})
 	}
 
-	if len(pipeline.Dev.BrowserSync) > 0 {
+	if len(setup.Dev.BrowserSync) > 0 {
 		g.Go(func() error {
-			return browsersync.Exec(gctx, cfg, pipeline, name, k8sClient)
+			return browsersync.Exec(gctx, cfg, setup.Dev.BrowserSync, name, k8sClient)
 		})
 	}
 
-	if len(pipeline.Dev.PortForward) > 0 {
+	if len(setup.Dev.PortForward) > 0 {
 		g.Go(func() error {
-			return portforward.Exec(gctx, cfg, pipeline, name, k8sClient)
+			return portforward.Exec(gctx, cfg, setup.Dev.PortForward, name, k8sClient)
 		})
 	}
 

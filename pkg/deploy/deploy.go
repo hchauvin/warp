@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/deploy/container"
+	"github.com/hchauvin/warp/pkg/deploy/helm"
 	"github.com/hchauvin/warp/pkg/deploy/kustomize"
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
@@ -23,6 +24,12 @@ func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline,
 		refs, err = container.Exec(ctx, cfg, pipeline, name)
 		if err != nil {
 			return fmt.Errorf("deploy.container: %v", err)
+		}
+	}
+
+	if pipeline.Deploy.Helm != nil {
+		if err := helm.Exec(ctx, cfg, pipeline, name, refs, k8sClient); err != nil {
+			return fmt.Errorf("deploy.helm: %v", err)
 		}
 	}
 

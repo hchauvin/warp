@@ -11,6 +11,7 @@ func (batch *Batch) Filter(tagFilter string, focus string) (*Batch, error) {
 		for _, cmd := range batch.Commands {
 			if cmd.Name == focus {
 				commands = []BatchCommand{cmd}
+				commands[0].DependsOn = nil
 				break
 			}
 		}
@@ -32,6 +33,6 @@ func (batch *Batch) Filter(tagFilter string, focus string) (*Batch, error) {
 
 	return &Batch{
 		Pipelines: batch.Pipelines,
-		Commands: commands,
+		Commands:  commands,
 	}, nil
 }

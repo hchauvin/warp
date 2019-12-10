@@ -47,12 +47,12 @@ func (trans *Transformer) Get(
 		Funcs(trans.funcs.txtFuncMap(ctx)).
 		Parse(tplStr)
 	if err != nil {
-		return "", fmt.Errorf("cannot parse template '%s': %v", tplStr, err)
+		return "", fmt.Errorf("cannot parse template <<< %s >>>: %v", tplStr, err)
 	}
 	data := map[string]interface{}{}
 	w := &bytes.Buffer{}
 	if err := tpl.Execute(w, data); err != nil {
-		return "", fmt.Errorf("cannot expand template: %v", err)
+		return "", fmt.Errorf("cannot expand template <<< %s >>>: %v", tplStr, err)
 	}
 	return w.String(), nil
 }
@@ -66,7 +66,7 @@ type templateFuncs struct {
 	cfg       *config.Config
 	name      names.Name
 	k8sClient *k8s.K8s
-	cacheMut sync.RWMutex
+	cacheMut  sync.RWMutex
 	cache     map[string]cacheEntry
 }
 
