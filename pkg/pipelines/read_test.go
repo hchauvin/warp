@@ -99,7 +99,7 @@ func TestPipelineFileNotExist(t *testing.T) {
 }
 
 func TestInvalidPipeline(t *testing.T) {
-	t.Skip()  // TODO
+	t.Skip() // TODO
 
 	var pipeline = []byte(`
 stack:
