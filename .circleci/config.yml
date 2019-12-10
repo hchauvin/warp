@@ -64,7 +64,7 @@ commands:
       - run:
           name: Helm
           command: |
-            curl -L -f https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz | tar xzf - helm > helm
+            curl -L -f https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz | tar xzf - linux-amd64/helm > helm
             chmod +x ./helm
             sudo mv ./helm /usr/local/bin
       - run:
@@ -104,7 +104,7 @@ commands:
       - run:
           name: Helm
           command: |
-            curl -L -f https://get.helm.sh/helm-v3.0.1-darwin-amd64.tar.gz | tar xzf - helm > helm
+            curl -L -f https://get.helm.sh/helm-v3.0.1-darwin-amd64.tar.gz | tar xzf - darwin-amd64/helm > helm
             chmod +x ./helm
             sudo mv ./helm /usr/local/bin
       - run:
