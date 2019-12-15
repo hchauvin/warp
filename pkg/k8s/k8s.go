@@ -125,6 +125,7 @@ func (k8s *K8s) Apply(ctx context.Context, resourcesPath string, labelSelector s
 		"--force",
 		"--prune", "-l",
 		labelSelector,
+		"--grace-period=0",
 	)
 	if err != nil {
 		return err
