@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/hchauvin/warp/pkg/stacks/names"
+	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -44,10 +45,6 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 					ServiceLabel: serviceName,
 				}.String()
 
-				if err := k8s.WaitForOnePodRunning(gctx, k8sNamespace, labelSelector); err != nil {
-					return err
-				}
-
 				endpoints, err := k8s.Clientset.CoreV1().
 					Endpoints(k8sNamespace).
 					List(metav1.ListOptions{
@@ -58,16 +55,36 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 						"could not get endpoints with label selector '%s': %v",
 						labelSelector, err)
 				}
+
+				addressesCount := 0
+				notReadyAddressesCount := 0
+				for _, endpoint := range endpoints.Items {
+					addressesCount += len(endpoint.Subsets[0].Addresses)
+					notReadyAddressesCount += len(endpoint.Subsets[0].NotReadyAddresses)
+				}
+
+				if notReadyAddressesCount == 0 {
+					k8s.cfg.Logger().Info(
+						subLogDomain,
+						"service %s|%s has %d endpoints and %d addresses ready",
+						service.Namespace,
+						service.Name,
+						len(endpoints.Items),
+						addressesCount,
+					)
+					return nil
+				}
+
 				k8s.cfg.Logger().Info(
 					subLogDomain,
-					"service %s|%s has %d endpoints ready",
+					"service %s|%s: %d endpoints, %d/%d addresses ready",
 					service.Namespace,
 					service.Name,
 					len(endpoints.Items),
+					addressesCount,
+					addressesCount/(addressesCount+notReadyAddressesCount),
 				)
-				if len(endpoints.Items) > 0 {
-					return nil
-				}
+
 				select {
 				case <-time.After(3 * time.Second):
 				case <-gctx.Done():
@@ -84,7 +101,7 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 
 // WaitForEndpoints waits for all the services to have at least one ready endpoint.
 func (k8s *K8s) WaitForOnePodPerService(ctx context.Context, k8sNamespace string, name names.Name) error {
-	const subLogDomain = logDomain + ":waitFor:endpoints"
+	const subLogDomain = logDomain + ":waitFor:onePodPerService"
 
 	services, err := k8s.Clientset.CoreV1().Services(k8sNamespace).
 		List(metav1.ListOptions{
@@ -97,6 +114,11 @@ func (k8s *K8s) WaitForOnePodPerService(ctx context.Context, k8sNamespace string
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
+	var readyCount atomic.Int64
+	k8s.cfg.Logger().Info(
+		subLogDomain,
+		"0/%d services ready",
+		len(services.Items))
 	for _, service := range services.Items {
 		service := service
 		serviceName, ok := service.Labels[ServiceLabel]
@@ -118,6 +140,11 @@ func (k8s *K8s) WaitForOnePodPerService(ctx context.Context, k8sNamespace string
 			if err := k8s.WaitForOnePodRunning(gctx, k8sNamespace, labelSelector); err != nil {
 				return err
 			}
+			k8s.cfg.Logger().Info(
+				subLogDomain,
+				"%d/%d services ready",
+				readyCount.Inc(),
+				len(services.Items))
 
 			return nil
 		})
@@ -137,6 +164,7 @@ const (
 	pending     = podStatus("pending")
 	running     = podStatus("running")
 	failed      = podStatus("failed")
+	terminating = podStatus("terminating")
 )
 
 // WaitForPodsAllRunning waits for all the pods to be running.
@@ -207,6 +235,10 @@ func (k8s *K8s) WaitForOnePodRunning(
 }
 
 func getPodStatus(pod *corev1.Pod) (podStatus, error) {
+	if pod.DeletionTimestamp != nil {
+		return terminating, nil
+	}
+
 	switch pod.Status.Phase {
 	case corev1.PodPending:
 		switch pod.Status.Reason {
