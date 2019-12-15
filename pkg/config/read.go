@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/Masterminds/sprig"
 	"github.com/go-playground/validator"
+	"github.com/google/uuid"
 	"github.com/hchauvin/warp/pkg/templates"
 	"github.com/pelletier/go-toml"
 	"github.com/spf13/afero"
@@ -92,6 +93,7 @@ func ReadFs(fs afero.Fs, path string) (*Config, error) {
 	}
 
 	cfg.WorkspaceDir = root
+	cfg.RunID = uuid.New().String()
 
 	return cfg, nil
 }

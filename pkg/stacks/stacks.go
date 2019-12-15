@@ -71,6 +71,19 @@ func Exec(
 	}
 	defer k8sClient.Ports.CancelForwarding()
 
+	var setup *pipelines.Setup
+	if execCfg.Setup != "" {
+		s, err := pipeline.Setups.Get(execCfg.Setup)
+		if err != nil {
+			return err
+		}
+		setup = s
+
+		if err := dev.PatchPipeline(cfg, setup, pipeline); err != nil {
+			return fmt.Errorf("cannot patch pipeline according to dev step: %v", err)
+		}
+	}
+
 	if err := deploy.Exec(ctx, cfg, pipeline, execCfg.Name, k8sClient); err != nil {
 		return fmt.Errorf("deploy step failed: %v", err)
 	}
@@ -111,11 +124,7 @@ func Exec(
 		}()
 	}
 
-	if execCfg.Setup != "" {
-		setup, err := pipeline.Setups.Get(execCfg.Setup)
-		if err != nil {
-			return err
-		}
+	if setup != nil {
 		err = run.ExecHooks(
 			ctx,
 			cfg,

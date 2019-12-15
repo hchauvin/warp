@@ -40,6 +40,9 @@ type Config struct {
 	// WorkspaceDir is the workspace directory.
 	WorkspaceDir string `toml:"-"`
 
+	// RunID is a random ID specific to this run of "warp".
+	RunID string `toml:"-"`
+
 	logger log.Logger
 }
 

@@ -6,19 +6,51 @@
 package ksync
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"github.com/Masterminds/sprig"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/proc"
 	"github.com/hchauvin/warp/pkg/stacks/names"
+	"github.com/hchauvin/warp/pkg/templates"
 	"golang.org/x/sync/errgroup"
 	"os/exec"
 	"strings"
+	"text/template"
 )
 
 const logDomain = "dev.ksync"
+
+const deploymentPatchTemplate = `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: __NAME__
+spec:
+  template:
+    metadata:
+      labels:
+        __LABEL__: __VALUE__
+`
+
+func PatchSetup(cfg *config.Config, setup *pipelines.Setup, pipeline *pipelines.Pipeline) error {
+	for _, e := range setup.Dev.Ksync {
+		patch := deploymentPatchTemplate
+		patch = strings.ReplaceAll(patch, "__NAME__", e.DeploymentName)
+		patch = strings.ReplaceAll(patch, "__LABEL__", k8s.RunIDLabel)
+		patch = strings.ReplaceAll(patch, "__VALUE__", cfg.RunID)
+
+		pipeline.Deploy.Kustomize.PatchesStrategicMerge = append(
+			pipeline.Deploy.Kustomize.PatchesStrategicMerge,
+			patch,
+		)
+	}
+
+	return nil
+}
 
 func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name names.Name, k8sClient *k8s.K8s) error {
 	ksyncPath, err := cfg.ToolPath(config.Ksync)
@@ -38,6 +70,7 @@ func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name
 				"--selector",
 				k8s.Labels{
 					k8s.StackLabel: name.DNSName(),
+					k8s.RunIDLabel: cfg.RunID,
 				}.String() + "," + e.Selector,
 			}
 			if e.LocalReadOnly {
@@ -49,7 +82,11 @@ func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name
 			if e.DisableReloading {
 				args = append(args, "--reload=false")
 			}
-			args = append(args, cfg.Path(e.Local), e.Remote)
+			local, err := expandTemplate(e.Local)
+			if err != nil {
+				return fmt.Errorf("could not expand template 'local': %v", err)
+			}
+			args = append(args, cfg.Path(local), e.Remote)
 			cfg.Logger().Info(logDomain, strings.Join(args, " "))
 			cmd, err := k8sClient.KubectlLikeCommandContext(ctx, ksyncPath, args...)
 			if err != nil {
@@ -88,4 +125,20 @@ func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name
 		}
 	}
 	return nil
+}
+
+func expandTemplate(tplStr string) (string, error) {
+	tpl, err := template.New("config").
+		Funcs(sprig.TxtFuncMap()).
+		Funcs(templates.TxtFuncMap()).
+		Parse(tplStr)
+	if err != nil {
+		return "", err
+	}
+	data := map[string]interface{}{}
+	w := &bytes.Buffer{}
+	if err := tpl.Execute(w, data); err != nil {
+		return "", fmt.Errorf("cannot expand template <<< %s >>>: %v", tplStr, err)
+	}
+	return w.String(), nil
 }

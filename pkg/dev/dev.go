@@ -16,6 +16,15 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// PatchPipeline patches a pipeline depending on the "dev" steps.
+func PatchPipeline(cfg *config.Config, setup *pipelines.Setup, pipeline *pipelines.Pipeline) error {
+	if err := ksync.PatchSetup(cfg, setup, pipeline); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Exec executes the "dev" steps.
 func Exec(
 	ctx context.Context,

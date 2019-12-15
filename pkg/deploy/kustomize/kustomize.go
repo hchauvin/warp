@@ -70,6 +70,7 @@ func ExpandResources(
 		"commonLabels": m{
 			k8s.StackLabel: dnsName,
 		},
+		"patchesStrategicMerge": pipeline.Deploy.Kustomize.PatchesStrategicMerge,
 	}
 	if !k.DisableNamePrefix {
 		overlay["namePrefix"] = dnsName + "-"

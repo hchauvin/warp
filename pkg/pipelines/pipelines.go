@@ -163,6 +163,11 @@ type Kustomize struct {
 	// DisableNamePrefix Disables prefixing the names of Kubernetes
 	// resources with the names of the Stack.
 	DisableNamePrefix bool `yaml:"disableNamePrefix"`
+
+	// PatchesStrategicMerge contains additional patches to apply
+	// with a strategic merge.  The patches are subject to template
+	// expansion.
+	PatchesStrategicMerge []string `yaml:"patchesStrategicMerge,omitempty" patchStrategy:"append"`
 }
 
 type Setup struct {
@@ -322,6 +327,9 @@ type Ksync struct {
 
 	// Selector is a Kubernetes selector to select the pods to synchronize.
 	Selector string `yaml:"selector" validate:"required"`
+
+	// DeploymentName is the name of the deployment used to create the pods.
+	DeploymentName string `yaml:"deploymentName" validate:"required"`
 
 	// Local is the path to the local file or folder to synchronize.
 	Local string `yaml:"local" validate:"required"`

@@ -21,6 +21,11 @@ const (
 	// the resource name (coming from metadata.name) contains some stack-specific
 	// prefix, which makes it difficult to refer to a resource by its name.
 	NameLabel = "warp.name"
+
+	// RunIDLabel is a label put on any resource to tie it to a specific run of
+	// "warp".  Having such a label ensures that the resource is recreated every
+	// time warp runs.
+	RunIDLabel = "warp.runID"
 )
 
 // Labels maps labels to values.  Combining Labels with the String function gives
