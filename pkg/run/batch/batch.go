@@ -646,6 +646,8 @@ func (runner *runner) pipeline(name string) (*pipeline, error) {
 func (runner *runner) event(event interface{}) {
 	if runner.options.Events != nil {
 		runner.options.Events <- event
+	} else {
+		runner.cfg.Logger().Info(logDomain, "%v", event)
 	}
 }
 

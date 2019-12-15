@@ -180,7 +180,7 @@ func Exec(
 	}
 
 	if execCfg.WaitForInterrupt {
-		fmt.Printf("[Press Ctl-C to exit]")
+		fmt.Printf("[Press Ctl-C to exit]\n")
 		c := make(chan os.Signal)
 		signal.Notify(c, os.Interrupt)
 		select {

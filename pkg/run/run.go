@@ -110,12 +110,36 @@ func ExecHooks(
 				defer cancel()
 			}
 
+			var hookId string
+			if hook.Name != "" {
+				hookId = fmt.Sprintf("#%d(%s)", i, hook.Name)
+			} else {
+				hookId = fmt.Sprintf("#%d", i)
+			}
+
+			execDone := make(chan struct{})
+			defer close(execDone)
+			go func() {
+				for {
+					select {
+					case <-gctx.Done():
+						return
+					case <-execDone:
+						return
+					case <-time.After(10 * time.Second):
+						cfg.Logger().Info("run:exec-hooks", "hook %s: still running...", hookId)
+					}
+				}
+			}()
 			if err := execHook(hookCtx, cfg, name, specName, i, &hook, sharedEnv, k8sClient); err != nil {
-				return fmt.Errorf("hook #%d: %s", i, err)
+				return fmt.Errorf("hook %s: %s", hookId, err)
 			}
 
 			if hook.Name != "" {
 				close(done[hook.Name])
+				cfg.Logger().Info("run:exec-hooks", "hook %s: success", hookId)
+			} else {
+				cfg.Logger().Info("run:exec-hooks", "hook %s: success", hookId)
 			}
 			return nil
 		})

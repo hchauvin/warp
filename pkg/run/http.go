@@ -42,6 +42,13 @@ func httpGet(
 		req.Header.Add(h.Name, value)
 	}
 
+	var urlWithResolution string
+	if url == spec.URL {
+		urlWithResolution = spec.URL
+	} else {
+		urlWithResolution = fmt.Sprintf("%s (-> %s)", spec.URL, url)
+	}
+
 	backoff := wait.Backoff{
 		Duration: 200 * time.Millisecond,
 		Factor:   3,
@@ -60,7 +67,7 @@ func httpGet(
 			}
 		}
 
-		cfg.Logger().Info("run:hook:httpGet", "%s - %v", url, err)
+		cfg.Logger().Info("run:hook:httpGet", "%s - %v", urlWithResolution, err)
 
 		select {
 		case <-ctx.Done():
