@@ -35,6 +35,7 @@ type RunBatchOptions struct {
 	Parallelism          int
 	MaxStacksPerPipeline int
 	Bail                 bool
+	Advisory             bool
 	Reporter             Reporter
 	Events               chan<- interface{}
 }
@@ -214,7 +215,15 @@ func RunBatch(
 		return err
 	}
 	if len(runner.errored) > 0 {
-		return fmt.Errorf("The following commands errored: %s", strings.Join(runner.errored, " "))
+		if runner.options.Advisory {
+			runner.cfg.Logger().Warning(
+				logDomain,
+				"The following commands errored: %s",
+				strings.Join(runner.errored, " "),
+			)
+		} else {
+			return fmt.Errorf("The following commands errored: %s", strings.Join(runner.errored, " "))
+		}
 	}
 	return nil
 }

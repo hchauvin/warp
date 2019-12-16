@@ -191,6 +191,7 @@ type BatchCfg struct {
 	Tags                 string
 	Focus                string
 	Bail                 bool
+	Advisory             bool
 	Report               string
 	Stream               bool
 }
@@ -247,6 +248,7 @@ func Batch(ctx context.Context, batchCfg *BatchCfg) error {
 		Parallelism:          batchCfg.Parallelism,
 		MaxStacksPerPipeline: batchCfg.MaxStacksPerPipeline,
 		Bail:                 batchCfg.Bail,
+		Advisory:             batchCfg.Advisory,
 		Reporter:             reporter,
 		Events:               events,
 	}, k8sClient)

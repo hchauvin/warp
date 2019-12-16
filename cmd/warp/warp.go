@@ -153,6 +153,10 @@ func main() {
 					Name:  "bail",
 					Usage: "Bail out on first error",
 				},
+				cli.BoolFlag{
+					Name:  "advisory",
+					Usage: "Do not fail on error: the result (pass/fail) is advisory only.  If --bail is enabled, --advisory is ignored.",
+				},
 				cli.StringFlag{
 					Name:  "report",
 					Usage: "Output path to report folder",
@@ -174,6 +178,7 @@ func main() {
 					Tags:                 c.String("tags"),
 					Focus:                c.String("focus"),
 					Bail:                 c.Bool("bail"),
+					Advisory:             c.Bool("advisory"),
 					Report:               c.String("report"),
 					Stream:               c.Bool("stream"),
 				})
