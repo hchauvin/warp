@@ -155,6 +155,7 @@ func main() {
 				},
 				cli.BoolFlag{
 					Name:  "advisory",
+					EnvVar: "BATCH_ADVISORY_RESULT",
 					Usage: "Do not fail on error: the result (pass/fail) is advisory only.  If --bail is enabled, --advisory is ignored.",
 				},
 				cli.StringFlag{
