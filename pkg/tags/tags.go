@@ -33,7 +33,7 @@ func CompileFilter(filter string) (*Filter, error) {
 
 func (filter *Filter) Apply(tags []string) bool {
 	if len(tags) == 0 {
-		if len(filter.excludeTagSet) == 0 {
+		if len(filter.includeTagSet) == 0 {
 			return true
 		}
 		return false
