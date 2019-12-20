@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 )
 
+// Expand expands a pipeline definition with its bases it inherits from.
+// The result of the expansion is written in a YAML file given in the config.
 func (pipeline *Pipeline) Expand(cfg *config.Config) error {
 	var expandedPipelineFolder string
 	if pipeline.Stack.Name != "" {

@@ -89,6 +89,7 @@ const (
 	skipped
 )
 
+// RunBatch runs a batch of commands against stacks.
 func RunBatch(
 	ctx context.Context,
 	cfg *config.Config,
