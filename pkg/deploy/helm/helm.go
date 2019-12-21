@@ -38,7 +38,12 @@ func Exec(
 	var labelSelector string
 	h := pipeline.Deploy.Helm
 	if h.LabelSelector != "" {
-		labelSelector = h.LabelSelector
+		funcs := templateFuncs{cfg, name}
+		ls, err := funcs.Get(ctx, h.LabelSelector)
+		if err != nil {
+			return err
+		}
+		labelSelector = ls
 	} else {
 		labelSelector = k8s.StackLabel + "=" + name.DNSName()
 	}
@@ -65,10 +70,15 @@ func ExpandResources(
 	}
 
 	args := []string{"template"}
+	funcs := templateFuncs{cfg, name}
 	for _, arg := range h.Args {
-		args = append(args, arg)
+		argExpanded, err := funcs.Get(ctx, arg)
+		if err != nil {
+			return "", err
+		}
+		args = append(args, argExpanded)
 	}
-	args = append(args, h.Path)
+	args = append(args, cfg.Path(h.Path))
 
 	helmPath, err := cfg.ToolPath(config.Helm)
 	if err != nil {

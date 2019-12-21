@@ -61,6 +61,9 @@ func (cfg *Config) Logger() *log.Logger {
 
 func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
 	path := cfg.Tools[tool].Path
+	if path == "" {
+		panic("unexpected empty path")
+	}
 	if filepath.IsAbs(path) {
 		return path, nil
 	}
@@ -87,7 +90,7 @@ const (
 )
 
 // ToolNames gives all the required tools.
-var ToolNames = []Tool{Kustomize, Kubectl, Ksync, BrowserSync, Docker}
+var ToolNames = []Tool{Kustomize, Helm, Kubectl, Ksync, BrowserSync, Docker}
 
 // LogDomain gives the log domain for a tool.
 func (tool Tool) LogDomain() string {
