@@ -231,7 +231,7 @@ jobs:
               echo "ERROR: gofmt: bad format:\n$badFormat"
               exit 1
             fi
-      - run: ksync init
+      # - run: ksync init
       - run:
           name: MongoDB
           command: |
@@ -258,7 +258,7 @@ jobs:
             goRelArch=darwin-amd64
             url="https://golang.org/dl/go${GOLANG_VERSION}.${goRelArch}.tar.gz"
             curl -L $url | tar -C ~ -xzf -
-      - run: ksync init
+      # - run: ksync init
       - run:
           name: Test
           command: |
@@ -271,7 +271,7 @@ jobs:
       - checkout
       - install_deps_windows
       - kubeconfig_windows
-      - run: ksync init
+      # - run: ksync init
       - run:
           name: Test
           command: |
