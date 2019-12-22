@@ -65,10 +65,7 @@ commands:
           name: Helm
           command: |
             curl -L -f https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz | tar xzf -
-            pwd
-            ls .
             chmod +x ./linux-amd64/helm
-            sudo mv ./linux-amd64/helm /usr/local/bin
             sudo mv ./linux-amd64/helm /usr/local/bin
             rm -r ./linux-amd64
       - run:
