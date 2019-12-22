@@ -234,14 +234,11 @@ jobs:
           name: MongoDB
           command: |
             docker run --name mongo -p 27017:27017 -d mongo:bionic
-            while ! (echo 'db.runCommand("ping").ok' | docker exec mongo mongo 127.0.0.1:27017 --quiet); do
-              sleep 1
-            done
       - run: go test -v ./...
       - run:
           name: Code coverage
           command: |
-            export MONGODB_URI="mongodb://127.0.0.1:27017" 
+            export MONGODB_URI="mongodb://127.0.0.1:27017"
             go test -v -covermode=count -coverprofile=coverage.out ./... -coverpkg=./pkg/...
             go install github.com/mattn/goveralls
             goveralls -coverprofile=coverage.out -service=circleci-ci -repotoken=$COVERALLS_TOKEN
