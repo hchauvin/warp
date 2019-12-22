@@ -88,7 +88,7 @@ func Hold(holdCfg *HoldConfig) error {
 		return err
 	}
 
-	name, releaseName, err := stacks.Hold(cfg, pipeline)
+	name, holdErrc, releaseName, err := stacks.Hold(cfg, pipeline)
 	if err != nil {
 		return err
 	}
@@ -99,12 +99,14 @@ func Hold(holdCfg *HoldConfig) error {
 	stacksExecCtx, cancelStacksExec := context.WithCancel(context.Background())
 	detachedErrc := make(chan error, 1)
 	go func() {
+		var err error
 		select {
-		case err := <-detachedErrc:
-			if err != context.Canceled {
-				cancelStacksExec()
-				errs = append(errs, err.Error())
-			}
+		case err = <-detachedErrc:
+		case err = <-holdErrc:
+		}
+		if err != nil && err != context.Canceled {
+			cancelStacksExec()
+			errs = append(errs, err.Error())
 		}
 	}()
 	signalc := make(chan os.Signal)

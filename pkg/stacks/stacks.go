@@ -26,21 +26,26 @@ import (
 	"os/signal"
 )
 
-func Hold(cfg *config.Config, pipeline *pipelines.Pipeline) (*names.Name, name_manager.ReleaseFunc, error) {
+func Hold(cfg *config.Config, pipeline *pipelines.Pipeline) (*names.Name, <-chan error, name_manager.ReleaseFunc, error) {
 	if pipeline.Stack.Name != "" {
-		return &names.Name{ShortName: pipeline.Stack.Name}, func() error { return nil }, nil
+		errc := make(chan error)
+		release := func() error {
+			close(errc)
+			return nil
+		}
+		return &names.Name{ShortName: pipeline.Stack.Name}, errc, release, nil
 	} else if pipeline.Stack.Family == "" {
-		return nil, nil, errors.New("either stack.name or stack.family must be given")
+		return nil, nil, nil, errors.New("either stack.name or stack.family must be given")
 	} else {
 		nameManager, err := name_manager.CreateFromURL(cfg.NameManagerURL)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot create name manager: %v", err)
+			return nil, nil, nil, fmt.Errorf("cannot create name manager: %v", err)
 		}
-		shortName, release, err := nameManager.Hold(pipeline.Stack.Family)
+		shortName, errc, release, err := nameManager.Hold(pipeline.Stack.Family)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
-		return &names.Name{Family: pipeline.Stack.Family, ShortName: shortName}, release, nil
+		return &names.Name{Family: pipeline.Stack.Family, ShortName: shortName}, errc, release, nil
 	}
 }
 

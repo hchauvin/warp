@@ -253,6 +253,7 @@ type pipeline struct {
 type stackInfo struct {
 	pipelineName  string
 	name          names.Name
+	holdErrc      <-chan error
 	release       name_manager.ReleaseFunc
 	trans         *env.Transformer
 	exclusiveLock bool
@@ -333,7 +334,7 @@ func (runner *runner) hold(ctx context.Context, pipelineName string, exclusive b
 		}
 	}
 
-	name, release, err := stacks.Hold(runner.cfg, pipeline.pipeline)
+	name, holdErrc, release, err := stacks.Hold(runner.cfg, pipeline.pipeline)
 	if err != nil {
 		return nil, err
 	}
@@ -342,6 +343,7 @@ func (runner *runner) hold(ctx context.Context, pipelineName string, exclusive b
 		pipelineName:  pipelineName,
 		name:          *name,
 		release:       release,
+		holdErrc:      holdErrc,
 		trans:         env.NewTranformer(runner.cfg, *name, runner.k8sClient),
 		usageCount:    1,
 		exclusiveLock: exclusive,
@@ -495,6 +497,29 @@ func (runner *runner) execCommand(
 		return err
 	}
 
+	stackCtx, cancelDetached := context.WithCancel(ctx)
+	defer func() {
+		cancelDetached()
+	}()
+	var detachedErr error
+	{
+		var detachedErrSet atomic.Bool
+		for _, stack := range stacks {
+			stack := stack
+			go func() {
+				select {
+				case <-stackCtx.Done():
+					return
+				case err := <-stack.holdErrc:
+					if err != nil && !detachedErrSet.Swap(true) {
+						cancelDetached()
+						detachedErr = err
+					}
+				}
+			}()
+		}
+	}
+
 	// Gather environment variables
 	runner.event(interactive.SetStateEvent{
 		Name:  cmd.Name,
@@ -503,7 +528,7 @@ func (runner *runner) execCommand(
 	})
 	var allEnv []string
 	var allEnvMut sync.Mutex
-	g, gctx = errgroup.WithContext(ctx)
+	g, gctx = errgroup.WithContext(stackCtx)
 	for _, stack := range stacks {
 		stack := stack
 		g.Go(func() error {
@@ -568,7 +593,7 @@ func (runner *runner) execCommand(
 			Tries:   tries,
 		}
 
-		procCmd := proc.GracefulCommandContext(ctx, cmd.Command[0], cmd.Command[1:]...)
+		procCmd := proc.GracefulCommandContext(stackCtx, cmd.Command[0], cmd.Command[1:]...)
 		if cmd.WorkingDir != "" {
 			procCmd.Dir = cfg.Path(cmd.WorkingDir)
 		}
