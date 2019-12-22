@@ -82,7 +82,7 @@ func TestSend(t *testing.T) {
 		assert.Equal(t, "__commit__", payload.Lookup("commit").StringValue())
 		assert.Equal(t, versionDate, payload.Lookup("date").StringValue())
 		assert.Equal(t, "__user__", payload.Lookup("user").StringValue())
-		assert.Equal(t, started.Round(time.Microsecond*1000).String(), payload.Lookup("started").Time().UTC().Round(time.Microsecond*1000).String())
+		assert.Equal(t, started.Round(time.Second).String(), payload.Lookup("started").Time().UTC().Round(time.Second).String())
 		args := payload.Lookup("args").Array()
 		assert.Equal(t, "arg0", args.Index(0).Value().StringValue())
 		assert.Equal(t, "arg1", args.Index(1).Value().StringValue())
