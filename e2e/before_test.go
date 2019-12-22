@@ -3,27 +3,22 @@
 package e2e
 
 import (
-	"context"
 	"github.com/hchauvin/warp/pkg/warp"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestLint(t *testing.T) {
+func TestBefore(t *testing.T) {
 	godotenv.Load("../.env")
 
-	err := warp.Lint(context.Background(), &warp.LintCfg{
+	err := warp.Hold(&warp.HoldConfig{
 		WorkingDir:   "../examples",
 		ConfigPath:   ".warprc.toml",
-		PipelinePath: "lint/fail",
-	})
-	assert.Error(t, err)
-
-	err = warp.Lint(context.Background(), &warp.LintCfg{
-		WorkingDir:   "../examples",
-		ConfigPath:   ".warprc.toml",
-		PipelinePath: "lint/pass",
+		PipelinePath: "before",
+		Tail:         true,
+		Run:          []string{"test"},
+		Rm:           false,
 	})
 	assert.NoError(t, err)
 }

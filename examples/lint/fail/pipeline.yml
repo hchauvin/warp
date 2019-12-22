@@ -1,0 +1,5 @@
+stack:
+  family: warp-lint-fail
+deploy:
+  kustomize:
+    path: lint/fail

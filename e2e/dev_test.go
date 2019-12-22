@@ -39,6 +39,7 @@ func TestDev(t *testing.T) {
 		Tail:         true,
 		Run:          []string{"test"},
 		Rm:           false,
+		Setup:        "setup0",
 		Dev:          true,
 	})
 	assert.NoError(t, err)

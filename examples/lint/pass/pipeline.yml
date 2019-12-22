@@ -1,0 +1,5 @@
+stack:
+  family: warp-lint-pass
+deploy:
+  kustomize:
+    path: lint/pass

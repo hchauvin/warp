@@ -1,0 +1,78 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+  labels:
+    warp.service: echo
+spec:
+  ports:
+    - port: 5678
+      name: web
+  selector:
+    warp.service: echo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo-v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      warp.service: echo
+  template:
+    metadata:
+      labels:
+        warp.service: echo
+        version: v1
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo@sha256:ba27d460cd1f22a1a4331bdf74f4fccbc025552357e8a3249c40ae216275de96
+          imagePullPolicy: Always
+          securityContext:
+            runAsUser: 10001
+            runAsGroup: 10001
+            privileged: false
+            readOnlyRootFilesystem: true
+          resources:
+            limits:
+              cpu: 50m
+              memory: 100Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
+          ports:
+            - containerPort: 5678  # web
+          args: ['-text=Hello, world!']
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5678
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            failureThreshold: 4
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5678
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            failureThreshold: 4
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: echo
+spec:
+  podSelector:
+    matchLabels:
+      warp.service: echo
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - {}
+  egress:
+    - {}
