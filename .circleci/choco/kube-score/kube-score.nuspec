@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>kube-score</id>
+    <version>1.4.0</version>
+    <title>kube-score (Install)</title>
+    <authors>The kube-score authors</authors>
+    <projectUrl>https://github.com/zegl/kube-score</projectUrl>
+    <licenseUrl>https://github.com/zegl/kube-score/blob/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/zegl/kube-score</projectSourceUrl>
+    <summary>Kubernetes object analysis with recommendations for improved reliability and security</summary>
+    <description>kube-score is a tool that performs static code analysis of your Kubernetes object definitions.</description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

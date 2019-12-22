@@ -68,6 +68,12 @@ commands:
             chmod +x ./helm
             sudo mv ./helm /usr/local/bin
       - run:
+          name: KubeScore
+          command: |
+            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_linux_amd64.tar.gz | tar xzf - > kube-score
+            chmod +x ./kube-score
+            sudo mv ./kube-score /usr/local/bin
+      - run:
           name: Kubectl
           command: |
             curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl
@@ -108,6 +114,12 @@ commands:
             chmod +x ./helm
             sudo mv ./helm /usr/local/bin
       - run:
+          name: KubeScore
+          command: |
+            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_darwin_amd64.tar.gz | tar xzf - > kube-score
+            chmod +x ./kube-score
+            sudo mv ./kube-score /usr/local/bin
+      - run:
           name: Kubectl
           command: |
             curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/darwin/amd64/kubectl
@@ -136,6 +148,12 @@ commands:
             Set-Location .circleci\choco\kubernetes-helm
             choco pack
             choco install kubernetes-helm -dv -s .
+      - run:
+          name: KubeScore
+          command: |
+            Set-Location .circleci\choco\kube-score
+            choco pack
+            choco install kube-score -dv -s .
       - run:
           name: Kubectl
           command: |
@@ -217,7 +235,7 @@ jobs:
           command: |
             docker run --name mongo -p 27017:27017 -d mongo:bionic
             export MONGODB_URI="mongodb://127.0.0.1:27017"
-            while ! (echo 'db.runCommand("ping").ok' | docker exec -ti mongo mongo 127.0.0.1:27017 --quiet); do
+            while ! (echo 'db.runCommand("ping").ok' | docker exec mongo mongo 127.0.0.1:27017 --quiet); do
               sleep 1
             done
       - run: go test -v ./...
