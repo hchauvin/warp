@@ -501,9 +501,7 @@ func (runner *runner) execCommand(
 	defer func() {
 		cancelDetached()
 	}()
-	var detachedErr error
 	{
-		var detachedErrSet atomic.Bool
 		for _, stack := range stacks {
 			stack := stack
 			go func() {
@@ -511,9 +509,9 @@ func (runner *runner) execCommand(
 				case <-stackCtx.Done():
 					return
 				case err := <-stack.holdErrc:
-					if err != nil && !detachedErrSet.Swap(true) {
+					if err != nil {
+						runner.cfg.Logger().Error(logDomain, "detached error: %v", err)
 						cancelDetached()
-						detachedErr = err
 					}
 				}
 			}()
