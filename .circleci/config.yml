@@ -64,13 +64,15 @@ commands:
       - run:
           name: Helm
           command: |
-            curl -L -f https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz | tar xzf - linux-amd64/helm > helm
-            chmod +x ./helm
-            sudo mv ./helm /usr/local/bin
+            curl -L -f https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz | tar xzf - linux-amd64/helm
+            chmod +x ./linux-amd64/helm
+            sudo mv ./linux-amd64/helm /usr/local/bin
+            sudo mv ./linux-amd64/helm /usr/local/bin
+            rm -r ./linux-amd64
       - run:
           name: KubeScore
           command: |
-            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_linux_amd64.tar.gz | tar xzf - > kube-score
+            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_linux_amd64.tar.gz | tar xzf - kube-score
             chmod +x ./kube-score
             sudo mv ./kube-score /usr/local/bin
       - run:
@@ -110,13 +112,14 @@ commands:
       - run:
           name: Helm
           command: |
-            curl -L -f https://get.helm.sh/helm-v3.0.1-darwin-amd64.tar.gz | tar xzf - darwin-amd64/helm > helm
-            chmod +x ./helm
-            sudo mv ./helm /usr/local/bin
+            curl -L -f https://get.helm.sh/helm-v3.0.1-darwin-amd64.tar.gz | tar xzf - darwin-amd64/helm
+            chmod +x ./darwin-amd64/helm
+            sudo mv ./darwin-amd64/helm /usr/local/bin
+            rm -r ./darwin-amd64
       - run:
           name: KubeScore
           command: |
-            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_darwin_amd64.tar.gz | tar xzf - > kube-score
+            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_darwin_amd64.tar.gz | tar xzf - kube-score
             chmod +x ./kube-score
             sudo mv ./kube-score /usr/local/bin
       - run:
