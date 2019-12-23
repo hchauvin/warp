@@ -180,28 +180,30 @@ func (k8s *K8s) Gc(ctx context.Context, cfg *config.Config, name names.Name, opt
 		}
 		return gd.Wait()
 	})
-	for _, res := range k8s.cfg.Kubernetes.Resources {
-		g.Go(func() error {
-			api := k8s.DynClient.Resource(schema.GroupVersionResource{
-				Group:    res.Group,
-				Version:  res.Version,
-				Resource: res.Resource,
-			})
-			list, err := api.List(metav1.ListOptions{
-				LabelSelector: labelSelector,
-			})
-			if err != nil {
-				return err
-			}
-			var gd errgroup.Group
-			for _, resource := range list.Items {
-				resource := resource
-				gd.Go(func() error {
-					return api.Delete(resource.GetName(), nil)
+	if k8s.cfg.Kubernetes != nil {
+		for _, res := range k8s.cfg.Kubernetes.Resources {
+			g.Go(func() error {
+				api := k8s.DynClient.Resource(schema.GroupVersionResource{
+					Group:    res.Group,
+					Version:  res.Version,
+					Resource: res.Resource,
 				})
-			}
-			return gd.Wait()
-		})
+				list, err := api.List(metav1.ListOptions{
+					LabelSelector: labelSelector,
+				})
+				if err != nil {
+					return err
+				}
+				var gd errgroup.Group
+				for _, resource := range list.Items {
+					resource := resource
+					gd.Go(func() error {
+						return api.Delete(resource.GetName(), nil)
+					})
+				}
+				return gd.Wait()
+			})
+		}
 	}
 	if !options.PreservePersistentVolumeClaims {
 		g.Go(func() error {

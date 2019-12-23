@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -24,14 +25,23 @@ func run() error {
 
 	expectedConfigFoo := "__foo__"
 	actualConfigFoo := os.Getenv("CONFIG_FOO")
-	if actualConfigFoo != actualConfigFoo {
+	if actualConfigFoo != expectedConfigFoo {
 		return fmt.Errorf("expected CONFIG_FOO to be '%s', got '%s'", expectedConfigFoo, actualConfigFoo)
 	}
 
 	expectedSecretBar := "__bar__"
 	actualSecretBar := os.Getenv("SECRET_BAR")
-	if actualConfigFoo != actualConfigFoo {
+	if actualSecretBar != expectedSecretBar {
 		return fmt.Errorf("expected SECRET_BAR to be '%s', got '%s'", expectedSecretBar, actualSecretBar)
+	}
+
+	expectedServiceNameSuffix := "echo"
+	actualServiceName := os.Getenv("SERVICE_NAME")
+	if !strings.HasSuffix(actualServiceName, expectedServiceNameSuffix) {
+		return fmt.Errorf(
+			"expected SERVICE_NAME to end in '%s', got '%s'",
+			expectedServiceNameSuffix,
+			actualServiceName)
 	}
 
 	return nil

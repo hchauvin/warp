@@ -1,0 +1,11 @@
+stack:
+  family: warp-gc
+deploy:
+  kustomize:
+    path: gc
+commands:
+- name: test
+  env:
+    - 'ENDPOINT=http://{{ serviceAddress "echo" 5678 }}'
+  workingDir: gc
+  command: ['go', 'run', 'test.go']

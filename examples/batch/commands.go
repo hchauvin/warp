@@ -53,6 +53,14 @@ func run() error {
 		}
 	}
 
+	if p.stdout != "" {
+		os.Stdout.WriteString(p.stdout)
+	}
+
+	if p.stderr != "" {
+		os.Stderr.WriteString(p.stderr)
+	}
+
 	return nil
 }
 
@@ -61,6 +69,8 @@ type params struct {
 	file      string
 	dependsOn []string
 	test      string
+	stdout string
+	stderr string
 }
 
 func readParams() (*params, error) {
@@ -80,13 +90,13 @@ func readParams() (*params, error) {
 		dependsOn = strings.Split(dependsOnStr, ",")
 	}
 
-	test := os.Getenv("TEST")
-
 	return &params{
 		outputDir: outputDir,
 		file:      file,
 		dependsOn: dependsOn,
-		test:      test,
+		test:      os.Getenv("TEST"),
+		stdout: os.Getenv("STDOUT"),
+		stderr: os.Getenv("STDERR"),
 	}, nil
 }
 

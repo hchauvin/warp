@@ -94,7 +94,7 @@ func (funcs *templateFuncs) k8sConfigMapKey(
 		if err != nil {
 			return err
 		}
-		re := regexp.MustCompile("^" + funcs.name.DNSName() + "-" + name + "-[a-z0-9]+$")
+		re := regexp.MustCompile("^" + funcs.name.DNSName() + "-" + name + "(-[a-z0-9]+)?$")
 		var secretNames []string
 		for _, cfgmap := range list.Items {
 			if re.MatchString(cfgmap.Name) {

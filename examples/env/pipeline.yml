@@ -3,11 +3,15 @@ stack:
 deploy:
   kustomize:
     path: env
-commands:
-  - name: test
+setups:
+  - name: setup0
     env:
       - 'ENDPOINT=http://{{ k8sServiceAddress "default" "echo" 5678 }}'
-      - 'CONFIG_FOO={{ k8sConfigMapKey "default" "configMap" "foo" }}'
+      - 'CONFIG_FOO={{ k8sConfigMapKey "default" "config-map" "foo" }}'
       - 'SECRET_BAR={{ k8sSecretKey "default" "secrets" "bar" }}'
+      - 'SERVICE_NAME={{ k8sServiceName "default" "echo" }}'
+commands:
+  - name: test
+    setup: setup0
     workingDir: env
     command: ['go', 'run', 'test.go']

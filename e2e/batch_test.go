@@ -4,6 +4,9 @@ package e2e
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"github.com/hchauvin/warp/pkg/run/batch/fsreporter"
 	"github.com/hchauvin/warp/pkg/warp"
 	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +36,51 @@ func TestBatchBase(t *testing.T) {
 	assert.NoError(t, err)
 
 	assertRun(t, "base")
+}
+
+func TestBatchReport(t *testing.T) {
+	setUpBatch(t)
+	defer tearDownBatch()
+
+	reportDir := filepath.Join(os.Getenv("OUTPUT_DIR"), "_batch_report")
+
+	err := warp.Batch(context.Background(), &warp.BatchCfg{
+		WorkingDir:           "../examples",
+		ConfigPath:           ".warprc.toml",
+		BatchPath:            "batch/batch.yml",
+		Parallelism:          1,
+		MaxStacksPerPipeline: 1,
+		Tags:                 "",
+		Focus:                "report",
+		Bail:                 true,
+		Advisory:             false,
+		Report:               reportDir,
+		Stream:               true,
+	})
+	assert.NoError(t, err)
+
+	assertRun(t, "report")
+
+	fmt.Printf("Report dir: %s\n", reportDir)
+
+	reportJson, err := ioutil.ReadFile(filepath.Join(reportDir, "report.json"))
+	assert.NoError(t, err, "cannot open report.json")
+
+	var report fsreporter.Report
+	err = json.Unmarshal(reportJson, &report)
+	assert.NoError(t, err, "cannot unmarshal report")
+
+	assert.Len(t, report.EnvironmentSetupResults, 0)
+	assert.Len(t, report.Results, 1)
+	assert.Equal(t, "report", report.Results[0].Name)
+
+	logFiles, err := ioutil.ReadDir(filepath.Join(reportDir, "log"))
+	assert.NoError(t, err, "cannot read log directory")
+	assert.Len(t, logFiles, 1)
+
+	log, err := ioutil.ReadFile(filepath.Join(reportDir, "log/report.1.txt"))
+	assert.Contains(t, string(log), "__stdout__")
+	assert.Contains(t, string(log), "__stderr__")
 }
 
 func TestBatchDependsOn(t *testing.T) {
