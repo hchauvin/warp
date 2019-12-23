@@ -8,6 +8,13 @@ commands:
     command: ['go', 'run', 'commands.go']
     env:
       - 'FILE=base'
+  - name: report
+    workingDir: 'batch'
+    command: ['go', 'run', 'commands.go']
+    env:
+      - 'FILE=report'
+      - 'STDOUT=__stdout__'
+      - 'STDERR=__stderr__'
   - name: depends-on
     tags: ['depends-on']
     dependsOn: ['dependency']

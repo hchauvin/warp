@@ -25,6 +25,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -638,11 +639,18 @@ func (runner *runner) execCommand(
 				defer w.Close()
 				scanner := bufio.NewScanner(combinedOutput)
 				for scanner.Scan() {
-					cfg.Logger().Info("run:"+cmd.Name, "%s", string(scanner.Bytes()))
+					cfg.Logger().Info("run:"+cmd.Name, "%s", scanner.Text())
 					if _, err := w.Write(append(scanner.Bytes(), '\n')); err != nil {
 						cfg.Logger().Error("run:"+cmd.Name, "could not write to log file: %v", err)
 						return
 					}
+				}
+				b, err := ioutil.ReadAll(combinedOutput)
+				if err != nil {
+					cfg.Logger().Error("run:"+cmd.Name, "could not read log: %v", err)
+				}
+				if _, err := w.Write(b); err != nil {
+					cfg.Logger().Error("run:"+cmd.Name, "could not write to log file: %v", err)
 				}
 			}()
 		}
