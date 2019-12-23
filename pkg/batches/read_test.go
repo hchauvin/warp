@@ -27,7 +27,6 @@ pipelines:
   - name: foo
     path: bar
     setup: setup
-    tagFilter: tag
 commands:
   - name: cmd
 `)
@@ -38,7 +37,6 @@ var batch = Batch{
 			Name:      "foo",
 			Path:      "bar",
 			Setup:     "setup",
-			TagFilter: "tag",
 		},
 	},
 	Commands: []BatchCommand{
