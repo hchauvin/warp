@@ -13,9 +13,9 @@ parallel jobs running in Continuous Integration.  `warp` uses
 [name_manager](https://github.com/hchauvin/name_manager) to minimize the number of stacks that
 need to be deployed.
 
-Stacks are deployed and testing according to _pipelines._  These pipelines give all the
+Stacks are deployed and tested according to _pipelines._  These pipelines give all the
 steps to deploy the stack, all the tools to launch during local development (file syncing,
-port forwarding, webapp live reload, ...), all the end-to-end tests to run.
+port forwarding, webapp live reload, ...), and all the end-to-end tests to run.
 
 The end-to-end tests and local development tools are automatically passed environment
 variables to connect to the stack.  Performing end-to-end tests on a test stack
