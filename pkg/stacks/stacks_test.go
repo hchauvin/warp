@@ -14,18 +14,6 @@ import (
 	"testing"
 )
 
-func TestRemove(t *testing.T) {
-	cfg := &config.Config{WorkspaceDir: "/workspace"}
-	pipeline := &pipelines.Pipeline{
-		Stack: pipelines.Stack{
-			Name: "foo",
-		},
-	}
-
-	err := Remove(context.Background(), cfg, pipeline, "")
-	assert.NoError(t, err)
-}
-
 func TestListStacksWithFixedNamePipeline(t *testing.T) {
 	cfg := &config.Config{WorkspaceDir: "/workspace"}
 	pipeline := &pipelines.Pipeline{
