@@ -1,8 +1,8 @@
-// ksync implements file synchronization between the local file system
-// and Kubernetes pods.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package ksync implements file synchronization between the local file system
+// and Kubernetes pods.
 package ksync
 
 import (
@@ -36,6 +36,7 @@ spec:
         __LABEL__: __VALUE__
 `
 
+// PatchSetup patches the pipeline definition given a ksync dev setup.
 func PatchSetup(cfg *config.Config, setup *pipelines.Setup, pipeline *pipelines.Pipeline) error {
 	for _, e := range setup.Dev.Ksync {
 		patch := deploymentPatchTemplate
@@ -52,6 +53,7 @@ func PatchSetup(cfg *config.Config, setup *pipelines.Setup, pipeline *pipelines.
 	return nil
 }
 
+// Exec sets up file synchronization with ksync.
 func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name names.Name, k8sClient *k8s.K8s) error {
 	ksyncPath, err := cfg.ToolPath(config.Ksync)
 	if err != nil {

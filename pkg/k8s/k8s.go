@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
+
+// Package k8s implements Kubernetes-specific code.
 package k8s
 
 import (
@@ -14,6 +18,7 @@ import (
 	"path/filepath"
 )
 
+// NewClient creates a new Kubernetes client.
 func NewClient(cfg *config.Config) (*rest.Config, *kubernetes.Clientset, error) {
 	var kubeconfig string
 	var defaultContext string

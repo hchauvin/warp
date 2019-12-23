@@ -1,7 +1,7 @@
-// portforward implements port forwarding for development purposes.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package portforward implements port forwarding for development purposes.
 package portforward
 
 import (
@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Exec sets up port-forwarding for development purposes.
 func Exec(
 	ctx context.Context,
 	cfg *config.Config,

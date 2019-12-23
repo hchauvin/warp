@@ -1,7 +1,6 @@
-// k8s implements Kubernetes-specific code.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package k8s
 
 import "strings"

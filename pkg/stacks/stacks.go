@@ -1,7 +1,7 @@
-// stacks implements the acquisition and release of stacks, using name_manager.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// stacks implements the acquisition and release of stacks, using name_manager.
 package stacks
 
 import (

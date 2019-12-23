@@ -1,7 +1,7 @@
-// browsersync implements browser-sync live reload of web pages.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package browsersync implements browser-sync live reload of web pages.
 package browsersync
 
 import (
@@ -22,6 +22,7 @@ import (
 
 const logDomain = "dev.browsersync"
 
+// Exec sets up live reload using browser-sync.
 func Exec(
 	ctx context.Context,
 	cfg *config.Config,

@@ -1,7 +1,7 @@
-// log implements logging.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// log implements logging.
 package log
 
 import (

@@ -1,7 +1,7 @@
-// helm implements kustomize-based Kubernetes deployment.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package helm implements kustomize-based Kubernetes deployment.
 package helm
 
 import (
@@ -48,12 +48,12 @@ func Exec(
 		labelSelector = k8s.StackLabel + "=" + name.DNSName()
 	}
 
-	if err := k8sClient.Apply(ctx, k8sResourcesPath, labelSelector); err != nil {
-		return err
-	}
-	return nil
+	return k8sClient.Apply(ctx, k8sResourcesPath, labelSelector)
 }
 
+// ExpandResources expands the resources defined in a Helm chart
+// into a YAML file, with one resource per YAML document.  The
+// path to this file is returned.
 func ExpandResources(
 	ctx context.Context,
 	cfg *config.Config,

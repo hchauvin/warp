@@ -1,7 +1,7 @@
-// pipelines defines the pipeline API.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// pipelines defines the pipeline API.
 package pipelines
 
 import (

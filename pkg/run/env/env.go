@@ -1,7 +1,7 @@
-// env implements environment variable templating.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// env implements environment variable templating.
 package env
 
 import (

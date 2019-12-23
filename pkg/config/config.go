@@ -1,8 +1,8 @@
-// config provides TOML-based configuration for warp (.warprc.toml).  Used
-// to set up paths to tools, amongst other things.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package config provides TOML-based configuration for warp (.warprc.toml).  Used
+// to set up paths to tools, amongst other things.
 package config
 
 import (
@@ -60,6 +60,8 @@ func (cfg *Config) Logger() *log.Logger {
 	return &cfg.logger
 }
 
+// ToolPath resolves the full path of a tool.  It errors if
+// the tool could not be found.
 func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
 	path := cfg.Tools[tool].Path
 	if path == "" {
@@ -80,6 +82,7 @@ func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
 // Tool is the name of a tool.
 type Tool string
 
+// Names of the tools used by warp.
 const (
 	Kustomize   = Tool("Kustomize")
 	Helm        = Tool("Helm")

@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
+
 // names deals with stack names.  A stack name can be composed of a
 // family nalme and a short name in the case multiple instances of the
 // same stack are permitted.
-//
-// SPDX-License-Identifier: MIT
-// Copyright (c) 2019 Hadrien Chauvin
 package names
 
 import "strings"

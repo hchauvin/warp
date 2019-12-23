@@ -1,7 +1,7 @@
-// run implements the "run" step of pipelines.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// run implements the "run" step of pipelines.
 package run
 
 import (
