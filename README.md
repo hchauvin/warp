@@ -1,6 +1,6 @@
 # warp: Yet another deployment wrapper 🚀
 
-[![CircleCI](https://circleci.com/gh/hchauvin/warp.svg?style=svg)](https://circleci.com/gh/hchauvin/warp) [![GoDoc](https://godoc.org/github.com/hchauvin/warp?status.svg)](https://godoc.org/github.com/hchauvin/warp) [![Coverage Status](https://coveralls.io/repos/github/hchauvin/warp/badge.svg?branch=master&t=2W0xju)](https://coveralls.io/github/hchauvin/warp?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/hchauvin/warp)](https://goreportcard.com/report/github.com/hchauvin/warp) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CircleCI](https://circleci.com/gh/hchauvin/warp/tree/master.svg?style=svg)](https://circleci.com/gh/hchauvin/warp/tree/master) [![GoDoc](https://godoc.org/github.com/hchauvin/warp?status.svg)](https://godoc.org/github.com/hchauvin/warp) [![Coverage Status](https://coveralls.io/repos/github/hchauvin/warp/badge.svg?branch=master&t=2W0xju)](https://coveralls.io/github/hchauvin/warp?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/hchauvin/warp)](https://goreportcard.com/report/github.com/hchauvin/warp) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 `warp` is yet another command-line interface for deploying Kubernetes stacks.  The approach is very similar to
 [Skaffold](https://github.com/GoogleContainerTools/skaffold), but `warp` is specifically
