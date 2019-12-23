@@ -6,6 +6,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/hchauvin/warp/pkg/log"
 	"path/filepath"
 	"strings"
@@ -61,6 +62,9 @@ func (cfg *Config) Logger() *log.Logger {
 
 func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
 	path := cfg.Tools[tool].Path
+	if path == "" {
+		panic(fmt.Sprintf("unexpected empty path for tool %s", tool))
+	}
 	if filepath.IsAbs(path) {
 		return path, nil
 	}
@@ -87,7 +91,7 @@ const (
 )
 
 // ToolNames gives all the required tools.
-var ToolNames = []Tool{Kustomize, Kubectl, Ksync, BrowserSync, Docker}
+var ToolNames = []Tool{Kustomize, Helm, KubeScore, Kubectl, Ksync, BrowserSync, Docker}
 
 // LogDomain gives the log domain for a tool.
 func (tool Tool) LogDomain() string {
@@ -103,9 +107,9 @@ type ToolInfo struct {
 var toolDefaultPaths = map[Tool]string{
 	Kustomize:   "kustomize",
 	Helm:        "helm",
+	KubeScore:   "kube-score",
 	Kubectl:     "kubectl",
 	Ksync:       "ksync",
-	KubeScore:   "kube-score",
 	BrowserSync: "browser-sync",
 	Docker:      "docker",
 }

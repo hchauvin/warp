@@ -64,9 +64,16 @@ commands:
       - run:
           name: Helm
           command: |
-            curl -L -f https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz | tar xzf - linux-amd64/helm > helm
-            chmod +x ./helm
-            sudo mv ./helm /usr/local/bin
+            curl -L -f https://get.helm.sh/helm-v3.0.1-linux-amd64.tar.gz | tar xzf -
+            chmod +x ./linux-amd64/helm
+            sudo mv ./linux-amd64/helm /usr/local/bin
+            rm -r ./linux-amd64
+      - run:
+          name: KubeScore
+          command: |
+            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_linux_amd64.tar.gz | tar xzf - kube-score
+            chmod +x ./kube-score
+            sudo mv ./kube-score /usr/local/bin
       - run:
           name: Kubectl
           command: |
@@ -104,9 +111,16 @@ commands:
       - run:
           name: Helm
           command: |
-            curl -L -f https://get.helm.sh/helm-v3.0.1-darwin-amd64.tar.gz | tar xzf - darwin-amd64/helm > helm
-            chmod +x ./helm
-            sudo mv ./helm /usr/local/bin
+            curl -L -f https://get.helm.sh/helm-v3.0.1-darwin-amd64.tar.gz | tar xzf - darwin-amd64/helm
+            chmod +x ./darwin-amd64/helm
+            sudo mv ./darwin-amd64/helm /usr/local/bin
+            rm -r ./darwin-amd64
+      - run:
+          name: KubeScore
+          command: |
+            curl -L -f https://github.com/zegl/kube-score/releases/download/v1.4.0/kube-score_1.4.0_darwin_amd64.tar.gz | tar xzf - kube-score
+            chmod +x ./kube-score
+            sudo mv ./kube-score /usr/local/bin
       - run:
           name: Kubectl
           command: |
@@ -136,6 +150,12 @@ commands:
             Set-Location .circleci\choco\kubernetes-helm
             choco pack
             choco install kubernetes-helm -dv -s .
+      - run:
+          name: KubeScore
+          command: |
+            Set-Location .circleci\choco\kube-score
+            choco pack
+            choco install kube-score -dv -s .
       - run:
           name: Kubectl
           command: |
@@ -211,11 +231,16 @@ jobs:
               echo "ERROR: gofmt: bad format:\n$badFormat"
               exit 1
             fi
-      - run: ksync init
+      # - run: ksync init
+      - run:
+          name: MongoDB
+          command: |
+            docker run --name mongo -p 27017:27017 -d mongo:bionic
       - run: go test -v ./...
       - run:
           name: Code coverage
           command: |
+            export MONGODB_URI="mongodb://127.0.0.1:27017"
             go test -v -covermode=count -coverprofile=coverage.out ./... -coverpkg=./pkg/...
             go install github.com/mattn/goveralls
             goveralls -coverprofile=coverage.out -service=circleci-ci -repotoken=$COVERALLS_TOKEN
@@ -233,7 +258,7 @@ jobs:
             goRelArch=darwin-amd64
             url="https://golang.org/dl/go${GOLANG_VERSION}.${goRelArch}.tar.gz"
             curl -L $url | tar -C ~ -xzf -
-      - run: ksync init
+      # - run: ksync init
       - run:
           name: Test
           command: |
@@ -246,7 +271,7 @@ jobs:
       - checkout
       - install_deps_windows
       - kubeconfig_windows
-      - run: ksync init
+      # - run: ksync init
       - run:
           name: Test
           command: |

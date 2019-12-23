@@ -10,10 +10,9 @@ type Batch struct {
 }
 
 type Pipeline struct {
-	Name      string `yaml:"name" validate:"required,name"`
-	Path      string `yaml:"path" validate:"required"`
-	Setup     string `yaml:"setup"`
-	TagFilter string `yaml:"tagFilter"`
+	Name  string `yaml:"name" validate:"required,name"`
+	Path  string `yaml:"path" validate:"required"`
+	Setup string `yaml:"setup"`
 }
 
 type BatchCommand struct {

@@ -18,7 +18,7 @@ import (
 
 type ImageRefs map[string]string
 
-// Exec excutes the deployment operations addressing the containers themselves.
+// Exec executes the deployment operations addressing the containers themselves.
 func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) (ImageRefs, error) {
 	manifest := pipeline.Deploy.Container.ParsedManifest
 	if manifest == nil {

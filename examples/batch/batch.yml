@@ -1,0 +1,37 @@
+pipelines:
+  - name: pipeline0
+    path: batch/pipeline
+    setup: setup0
+commands:
+  - name: base
+    workingDir: 'batch'
+    command: ['go', 'run', 'commands.go']
+    env:
+      - 'FILE=base'
+  - name: depends-on
+    tags: ['depends-on']
+    dependsOn: ['dependency']
+    workingDir: 'batch'
+    command: ['go', 'run', 'commands.go']
+    env:
+      - 'FILE=depends-on'
+      - 'DEPENDS_ON=dependency'
+  - name: dependency
+    tags: ['depends-on']
+    workingDir: 'batch'
+    command: ['go', 'run', 'commands.go']
+    env:
+      - 'FILE=dependency'
+  - name: pipeline
+    pipelines: ['pipeline0']
+    workingDir: 'batch'
+    command: ['go', 'run', 'commands.go']
+    env:
+      - 'FILE=pipeline'
+      - 'TEST=pipeline'
+  - name: fail
+    workingDir: 'batch'
+    command: ['go', 'run', 'commands.go']
+    env:
+      - 'FILE=fail'
+      - 'TEST=fail'

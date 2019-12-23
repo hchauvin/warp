@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.warp.stack }}-echo
+  labels:
+    warp.service: echo
+    warp.stack: {{ .Values.warp.stack }}
+spec:
+  ports:
+    - port: 5678
+      name: web
+  selector:
+    warp.service: echo
+    warp.stack: {{ .Values.warp.stack }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.warp.stack }}-echo-v1
+  labels:
+    warp.stack: {{ .Values.warp.stack }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      warp.service: echo
+      warp.stack: {{ .Values.warp.stack }}
+  template:
+    metadata:
+      labels:
+        warp.service: echo
+        warp.stack: {{ .Values.warp.stack }}
+        version: v1
+    spec:
+      containers:
+        - name: echo
+          image: hashicorp/http-echo
+          ports:
+            - containerPort: 5678  # web
+          args: ['-text=Hello, world!']
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5678
+            initialDelaySeconds: 1
+            periodSeconds: 3
+            failureThreshold: 4

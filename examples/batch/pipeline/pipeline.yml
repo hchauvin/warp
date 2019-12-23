@@ -1,0 +1,25 @@
+stack:
+  family: warp-before
+deploy:
+  kustomize:
+    path: before
+setups:
+  - name: setup0
+    before:
+      - waitFor:
+          resources: ['onePodPerService']
+        name: waitForPods
+      - waitFor:
+          resources: ['endpoints']
+        timeoutSeconds: 600
+        name: waitFor
+        dependsOn:
+          - waitForPods
+      - httpGet:
+          url: http://{{ serviceAddress "echo" 5678 }}
+        timeoutSeconds: 600
+        dependsOn:
+          - waitFor
+        name: waitForEcho
+    env:
+      - 'ENDPOINT=http://{{ serviceAddress "echo" 5678 }}'

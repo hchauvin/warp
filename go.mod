@@ -13,7 +13,7 @@ require (
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator v9.30.2+incompatible
 	github.com/google/uuid v1.1.1
-	github.com/hchauvin/name_manager v0.2.3
+	github.com/hchauvin/name_manager v0.3.0
 	github.com/huandu/xstrings v1.2.1 // indirect
 	github.com/imdario/mergo v0.3.8
 	github.com/joho/godotenv v1.3.0

@@ -1,0 +1,15 @@
+stack:
+  family: warp-helm
+deploy:
+  helm:
+    path: helm/charts/helm-example
+    args:
+      - '--name-template={{ stackName }}'
+      - '--set=warp.stack={{ stackName }}'
+    labelSelector: 'warp.stack={{ stackName }}'
+commands:
+  - name: test
+    env:
+      - 'ENDPOINT=http://{{ serviceAddress "echo" 5678 }}'
+    workingDir: helm
+    command: ['go', 'run', 'test.go']

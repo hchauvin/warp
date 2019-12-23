@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
 package templates
 
 import (
@@ -7,7 +9,7 @@ import (
 
 // TxtFuncMap returns a 'text/template'.FuncMap
 func TxtFuncMap() ttemplate.FuncMap {
-	return ttemplate.FuncMap(GenericFuncMap())
+	return GenericFuncMap()
 }
 
 // GenericFuncMap returns a copy of the basic function map as a map[string]interface{}.
