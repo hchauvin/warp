@@ -2,6 +2,7 @@ package testing
 
 import (
 	"fmt"
+	"github.com/avast/retry-go"
 	"github.com/stretchr/testify/assert"
 	"net"
 	"net/http"
@@ -15,7 +16,7 @@ func TestExpectBody(t *testing.T) {
 
 	port := listener.Addr().(*net.TCPAddr).Port
 	go func() {
-		err = http.Serve(listener, &handler{})
+		err = retry.Do(func() error { return http.Serve(listener, &handler{}) })
 		assert.NoError(t, err)
 	}()
 
