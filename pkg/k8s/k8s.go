@@ -18,46 +18,6 @@ import (
 	"path/filepath"
 )
 
-// NewClient creates a new Kubernetes client.
-func NewClient(cfg *config.Config) (*rest.Config, *kubernetes.Clientset, error) {
-	var kubeconfig string
-	var defaultContext string
-	if cfg.Kubernetes != nil {
-		kubeconfig = cfg.Kubernetes.KubeconfigEnvVar
-		defaultContext = cfg.Kubernetes.DefaultContext
-	}
-	if kubeconfig == "" {
-		kubeconfig = os.Getenv("KUBECONFIG")
-	}
-	if kubeconfig == "" {
-		if home := homeDir(); home != "" {
-			kubeconfig = filepath.Join(home, ".kube", "config")
-		} else {
-			return nil, nil, fmt.Errorf("cannot determine path to kubeconfig")
-		}
-	}
-
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.Precedence = filepath.SplitList(kubeconfig)
-	overrides := &clientcmd.ConfigOverrides{}
-	overrides.CurrentContext = defaultContext
-
-	clientLoader := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
-		loadingRules,
-		overrides)
-	config, err := clientLoader.ClientConfig()
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot get Kubernetes client config: %v", err)
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return config, clientset, nil
-}
-
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
@@ -142,22 +102,6 @@ func (k8s *K8s) Apply(ctx context.Context, resourcesPath string, labelSelector s
 	k8s.cfg.Logger().Pipe(config.Kubectl.LogDomain(), cmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("could not apply kubectl patch '%s': %v", resourcesPath, err)
-	}
-	return nil
-}
-
-// DeleteAll deletes all the Kubernetes resources that match the label selector.
-func (k8s *K8s) DeleteAll(ctx context.Context, labelSelector string) error {
-	cmd, err := k8s.KubectlCommandContext(ctx, "delete",
-		"all",
-		"-l", labelSelector,
-	)
-	if err != nil {
-		return err
-	}
-	k8s.cfg.Logger().Pipe(logDomain+":kubectl", cmd)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not delete k8s resources: %v", err)
 	}
 	return nil
 }

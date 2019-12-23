@@ -38,7 +38,6 @@ func TestDev(t *testing.T) {
 		PipelinePath: "dev",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 		Setup:        "setup0",
 		Dev:          true,
 	})

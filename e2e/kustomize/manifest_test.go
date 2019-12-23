@@ -22,7 +22,6 @@ func TestManifest(t *testing.T) {
 		PipelinePath: "kustomize/manifest",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }

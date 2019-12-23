@@ -126,15 +126,3 @@ func ExpandResources(
 
 	return k8sResourcesPath, nil
 }
-
-// CleanUp cleans up/removes all the Kubernetes resources created during a Kustomization
-// deployment.
-func CleanUp(
-	ctx context.Context,
-	cfg *config.Config,
-	pipeline *pipelines.Pipeline,
-	name names.Name,
-	k8sClient *k8s.K8s,
-) error {
-	return k8sClient.DeleteAll(ctx, k8s.StackLabel+"="+name.DNSName())
-}

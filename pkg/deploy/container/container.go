@@ -99,8 +99,3 @@ func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline,
 
 	return refs, nil
 }
-
-// CleanUp cleans up/removes the resources created during the "container deploy" step.
-func CleanUp(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) error {
-	return nil
-}

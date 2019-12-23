@@ -30,7 +30,6 @@ func TestLabel(t *testing.T) {
 		PipelinePath: "container/label",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }

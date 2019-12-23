@@ -67,7 +67,6 @@ type HoldConfig struct {
 	DumpEnv      string
 	PersistEnv   bool
 	Wait         bool
-	Rm           bool
 }
 
 // Hold deploy a stacks, then hold it until either 1) the run specifications
@@ -132,12 +131,6 @@ func Hold(holdCfg *HoldConfig) error {
 		}
 	}
 
-	if holdCfg.Rm {
-		if err := stacks.Remove(context.Background(), cfg, pipeline, name.ShortName); err != nil {
-			errs = append(errs, fmt.Errorf("while cleaning: %v", err).Error())
-		}
-	}
-
 	if len(errs) > 0 {
 		return errors.New(strings.Join(errs, "\n"))
 	}
@@ -151,7 +144,7 @@ type DeployCfg struct {
 	PipelinePath string
 }
 
-// Deploy implements the "lint" command.
+// Deploy implements the "deploy" command.
 func Deploy(ctx context.Context, deployCfg *DeployCfg) error {
 	cfg, err := readConfig(deployCfg.WorkingDir, deployCfg.ConfigPath)
 	if err != nil {
@@ -260,47 +253,6 @@ func Batch(ctx context.Context, batchCfg *BatchCfg) error {
 		<-interactiveReportDone
 	}
 	return err
-}
-
-// RmCfg configures the Rm function.
-type RmCfg struct {
-	WorkingDir   string
-	ConfigPath   string
-	PipelinePath string
-	ShortNames   []string
-	All          bool
-}
-
-// Rm removes a stack.
-func Rm(rmCfg *RmCfg) error {
-	cfg, err := readConfig(rmCfg.WorkingDir, rmCfg.ConfigPath)
-	if err != nil {
-		return err
-	}
-
-	pipeline, err := pipelines.Read(cfg, rmCfg.PipelinePath)
-	if err != nil {
-		return err
-	}
-
-	shortNames := rmCfg.ShortNames
-	if len(shortNames) == 0 {
-		shortNames, err = stacks.List(context.Background(), cfg, pipeline, !rmCfg.All)
-		if err != nil {
-			return err
-		}
-	}
-
-	cfg.Logger().Info(logDomain, "removing stacks: %s", strings.Join(shortNames, " "))
-
-	var g errgroup.Group
-	for _, shortName := range shortNames {
-		shortName := shortName
-		g.Go(func() error {
-			return stacks.Remove(context.Background(), cfg, pipeline, shortName)
-		})
-	}
-	return g.Wait()
 }
 
 // GcCfg configures the "gc" command.

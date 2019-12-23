@@ -18,7 +18,6 @@ func TestHelm(t *testing.T) {
 		PipelinePath: "helm",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }

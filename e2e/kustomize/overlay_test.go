@@ -22,7 +22,6 @@ func TestOverlay(t *testing.T) {
 		PipelinePath: "kustomize/overlay",
 		Tail:         true,
 		Run:          []string{"test-overlay"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }
