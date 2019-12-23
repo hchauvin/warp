@@ -106,22 +106,6 @@ func (k8s *K8s) Apply(ctx context.Context, resourcesPath string, labelSelector s
 	return nil
 }
 
-// DeleteAll deletes all the Kubernetes resources that match the label selector.
-func (k8s *K8s) DeleteAll(ctx context.Context, labelSelector string) error {
-	cmd, err := k8s.KubectlCommandContext(ctx, "delete",
-		"all",
-		"-l", labelSelector,
-	)
-	if err != nil {
-		return err
-	}
-	k8s.cfg.Logger().Pipe(logDomain+":kubectl", cmd)
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not delete k8s resources: %v", err)
-	}
-	return nil
-}
-
 // KubectlCommandContext returns a command object to call the kubectl command.
 func (k8s *K8s) KubectlCommandContext(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	kubectlPath, err := k8s.cfg.ToolPath(config.Kubectl)

@@ -86,10 +86,6 @@ func main() {
 					Name:  "wait",
 					Usage: "Waits for interrupt (Ctl-C) before releasing the stack.  Always true when --run is not given.",
 				},
-				cli.BoolFlag{
-					Name:  "rm",
-					Usage: "Removes/cleans up a stack when finished",
-				},
 			},
 			Action: func(c *cli.Context) (err error) {
 				t := commandInvoked(c)
@@ -184,30 +180,6 @@ func main() {
 					Stream:               c.Bool("stream"),
 				})
 				return err
-			},
-		},
-		{
-			Name:        "rm",
-			Usage:       "Removes/cleans stacks",
-			ArgsUsage:   "<pipeline file> [short names...]",
-			Description: "Removes the stacks created from a pipeline, either all of them, or a specific list of short names",
-			Flags: []cli.Flag{
-				cli.BoolFlag{
-					Name:  "all",
-					Usage: "Removes all the stacks, even the ones that are currently in use",
-				},
-			},
-			Action: func(c *cli.Context) (err error) {
-				t := commandInvoked(c)
-				defer t.completed(err)
-				err = warp.Rm(&warp.RmCfg{
-					WorkingDir:   c.GlobalString("cwd"),
-					ConfigPath:   c.GlobalString("config"),
-					PipelinePath: c.Args().First(),
-					ShortNames:   c.Args().Tail(),
-					All:          c.Bool("all"),
-				})
-				return
 			},
 		},
 		{

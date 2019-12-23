@@ -41,20 +41,3 @@ func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline,
 
 	return nil
 }
-
-// CleanUp cleans up/removes the resources that are created by the deployment steps.
-func CleanUp(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
-	if pipeline.Deploy.Kustomize != nil {
-		if err := kustomize.CleanUp(ctx, cfg, pipeline, name, k8sClient); err != nil {
-			return fmt.Errorf("deploy.kustomize: %v", err)
-		}
-	}
-
-	if pipeline.Deploy.Container != nil {
-		if err := container.CleanUp(ctx, cfg, pipeline, name); err != nil {
-			return fmt.Errorf("deploy.kustomize: %v", err)
-		}
-	}
-
-	return nil
-}

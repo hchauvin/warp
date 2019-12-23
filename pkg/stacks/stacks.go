@@ -201,27 +201,6 @@ func Exec(
 	return nil
 }
 
-// Remove removes the stack with the given short name.  The short name (combined with the family name
-// to give the full name) is optional if the stack does not come with a family name but instead
-// with one single name.
-func Remove(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, shortName string) error {
-	k8sClient, err := k8s.New(cfg)
-	if err != nil {
-		return err
-	}
-	defer k8sClient.Ports.CancelForwarding()
-
-	if shortName == "" {
-		if pipeline.Stack.Name == "" {
-			return errors.New("stack.name is mandatory if not specified otherwise")
-		}
-		shortName = pipeline.Stack.Name
-	}
-	name := names.Name{Family: pipeline.Stack.Family, ShortName: shortName}
-
-	return deploy.CleanUp(ctx, cfg, pipeline, name, k8sClient)
-}
-
 // List lists all the stack names for a pipeline.  If freeOnly is true, only the
 // stacks that are not currently in use are returned.  Otherwise, all the stack anems
 // are returned.
