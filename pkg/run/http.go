@@ -38,7 +38,7 @@ func httpGet(
 	for _, h := range spec.HTTPHeaders {
 		value, err := trans.Get(ctx, h.Value)
 		if err != nil {
-			err = fmt.Errorf("cannot transform header %s: %v", h.Name, err)
+			return fmt.Errorf("cannot transform header %s: %v", h.Name, err)
 		}
 		req.Header.Add(h.Name, value)
 	}

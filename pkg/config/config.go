@@ -125,7 +125,7 @@ type Kubernetes struct {
 	// the current kubeconfig context is used.
 	DefaultContext string
 
-	// Kubeconfig is a list of configuraton files that are merged
+	// Kubeconfig is a list of configuration files that are merged
 	// to give the final kubeconfig configuration.  The files
 	// are "~" (home) expanded.
 	//
