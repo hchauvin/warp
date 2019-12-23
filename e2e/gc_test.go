@@ -20,8 +20,8 @@ func TestGc(t *testing.T) {
 	godotenv.Load("../.env")
 
 	gcCfg := &warp.GcCfg{
-		WorkingDir:   "../examples",
-		ConfigPath:   ".warprc.toml",
+		WorkingDir: "../examples",
+		ConfigPath: ".warprc.toml",
 	}
 
 	fullPath := filepath.Join(gcCfg.WorkingDir, gcCfg.ConfigPath)
@@ -42,9 +42,9 @@ func TestGc(t *testing.T) {
 
 	detachedErrc := make(chan error)
 	err = stacks.Exec(context.Background(), cfg, pipeline, &stacks.ExecConfig{
-		Name:             *name,
-		Tail:             true,
-		Run:              []string{"test"},
+		Name: *name,
+		Tail: true,
+		Run:  []string{"test"},
 	}, detachedErrc)
 	assert.NoError(t, err)
 	go func() {

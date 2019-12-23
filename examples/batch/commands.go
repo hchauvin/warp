@@ -69,8 +69,8 @@ type params struct {
 	file      string
 	dependsOn []string
 	test      string
-	stdout string
-	stderr string
+	stdout    string
+	stderr    string
 }
 
 func readParams() (*params, error) {
@@ -95,8 +95,8 @@ func readParams() (*params, error) {
 		file:      file,
 		dependsOn: dependsOn,
 		test:      os.Getenv("TEST"),
-		stdout: os.Getenv("STDOUT"),
-		stderr: os.Getenv("STDERR"),
+		stdout:    os.Getenv("STDOUT"),
+		stderr:    os.Getenv("STDERR"),
 	}, nil
 }
 

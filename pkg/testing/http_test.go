@@ -23,7 +23,7 @@ func TestExpectBody(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-type handler struct {}
+type handler struct{}
 
 func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte("__body__")); err != nil {
