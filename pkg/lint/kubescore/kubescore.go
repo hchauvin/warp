@@ -11,6 +11,7 @@ import (
 
 const logDomain = "kubescore"
 
+// Lint calls kube-score for linting Kubernetes resource definitions.
 func Lint(ctx context.Context, cfg *config.Config, k8sResourcesPath string) error {
 	kubeScorePath, err := cfg.ToolPath(config.KubeScore)
 	if err != nil {
@@ -19,9 +20,5 @@ func Lint(ctx context.Context, cfg *config.Config, k8sResourcesPath string) erro
 
 	cmd := proc.GracefulCommandContext(ctx, kubeScorePath, "score", k8sResourcesPath)
 	cfg.Logger().Pipe(logDomain, cmd)
-	if err := cmd.Run(); err != nil {
-		return err
-	}
-
-	return nil
+	return cmd.Run()
 }

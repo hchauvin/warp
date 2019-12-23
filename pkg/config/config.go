@@ -36,6 +36,7 @@ type Config struct {
 	// cluster used for deployment.
 	Kubernetes *Kubernetes
 
+	// Telemetry configures telemetry.
 	Telemetry Telemetry
 
 	// WorkspaceDir is the workspace directory.
@@ -152,6 +153,8 @@ type Resource struct {
 	Resource string
 }
 
+// Telemetry configures telemetry.  Telemetry is used to gather
+// usage info.
 type Telemetry struct {
 	// Connection string for the telemetry module
 	ConnectionString string

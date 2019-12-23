@@ -65,21 +65,21 @@ func (s ServiceSpec) String() string {
 // The remote port comes from the first pod that matches a service spec.
 //
 // PodPortForward can be used instead to fix the local port.
-func (ports *Ports) Port(service ServiceSpec, exposedTcpPort int) (int, error) {
+func (ports *Ports) Port(service ServiceSpec, exposedTCPPort int) (int, error) {
 	ans, err := ports.memoize(
 		func() (interface{}, error) {
-			return ports.doPort(service, exposedTcpPort)
+			return ports.doPort(service, exposedTCPPort)
 		},
 		"Port",
 		service,
-		exposedTcpPort)
+		exposedTCPPort)
 	if err != nil {
 		return 0, err
 	}
 	return ans.(int), nil
 }
 
-// PodPortForward forward a remote port to a fixed local port.
+// ServicePortForward forwards a remote port to a fixed local port.
 // The remote port comes from the first pod that matches a service spec.
 func (ports *Ports) ServicePortForward(service ServiceSpec, localPortSpec, exposedTCPPort int) (localPort int, err error) {
 	ans, err := ports.memoize(
@@ -96,8 +96,8 @@ func (ports *Ports) ServicePortForward(service ServiceSpec, localPortSpec, expos
 	return ans.(int), nil
 }
 
-func (ports *Ports) doPort(service ServiceSpec, exposedTcpPort int) (int, error) {
-	localPort, err := ports.ServicePortForward(service, 0, exposedTcpPort)
+func (ports *Ports) doPort(service ServiceSpec, exposedTCPPort int) (int, error) {
+	localPort, err := ports.ServicePortForward(service, 0, exposedTCPPort)
 	if err != nil {
 		return 0, err
 	}
@@ -145,6 +145,7 @@ func (ports *Ports) doServicePortForward(service ServiceSpec, localPortSpec, exp
 	}
 }
 
+// PodPortForward forwards a remote port to a fixed local port.
 func (ports *Ports) PodPortForward(namespace, name string, localPortSpec, exposedTCPPort int) (int, error) {
 	req := ports.k8sClient.Clientset.CoreV1().RESTClient().Post().
 		Resource("pods").

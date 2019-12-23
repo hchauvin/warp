@@ -23,7 +23,7 @@ func httpGet(
 	spec *pipelines.HTTPGet,
 	k8sClient *k8s.K8s,
 ) error {
-	trans := env.NewTranformer(cfg, name, k8sClient)
+	trans := env.NewTransformer(cfg, name, k8sClient)
 
 	url, err := trans.Get(ctx, spec.URL)
 	if err != nil {

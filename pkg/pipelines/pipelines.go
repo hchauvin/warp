@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
 
-// pipelines defines the pipeline API.
+// Package pipelines defines the pipeline API.
 package pipelines
 
 import (
@@ -41,8 +41,11 @@ type Pipeline struct {
 	Path string `yaml:"-"`
 }
 
+// Setups is a slice of named setups.  Within this slice, names
+// are unique.
 type Setups []Setup
 
+// Get gets the setup given its name.
 func (setups Setups) Get(name string) (*Setup, error) {
 	for _, setup := range setups {
 		if setup.Name == name {
@@ -55,6 +58,7 @@ func (setups Setups) Get(name string) (*Setup, error) {
 		strings.Join(setups.Names(), " "))
 }
 
+// Names gets a slice of all the setup names.
 func (setups Setups) Names() []string {
 	names := make([]string, len(setups))
 	for i, setup := range setups {
@@ -79,8 +83,14 @@ type Stack struct {
 	Variant string `yaml:"variant,omitempty"`
 }
 
+// Lint describes the linting steps
 type Lint struct {
-	DisableHelmKubeScore      bool `yaml:"disableHelmKubeScore"`
+	// DisableHelmKubeScore disables applying kube-score on the
+	// Kubernetes resources created by Helm.
+	DisableHelmKubeScore bool `yaml:"disableHelmKubeScore"`
+
+	// DisableKustomizeKubeScore disables applying kube-score on
+	// the Kubernetes resources created by Kustomize.
 	DisableKustomizeKubeScore bool `yaml:"disableKustomizeKubeScore"`
 }
 
@@ -135,10 +145,13 @@ type Container struct {
 // build process.
 type ContainerManifest map[string]ContainerManifestEntry
 
+// ContainerManifestEntry is an entry in the container manager.
 type ContainerManifestEntry struct {
+	// Ref is a reference to an actual image in a container registry.
 	Ref string `json:"ref"`
 }
 
+// Helm describe the Help config to use to deploy to a Kubernetes cluster.
 type Helm struct {
 	// Path to the helm chart, relative to the root given in the
 	// warprc.toml configuration.
@@ -170,6 +183,8 @@ type Kustomize struct {
 	PatchesStrategicMerge []string `yaml:"patchesStrategicMerge,omitempty" patchStrategy:"append"`
 }
 
+// Setup defines the resources to set up and tear down around the
+// execution of test or batch commands.
 type Setup struct {
 	// Name is the name of the environment.
 	Name string `yaml:"name" validate:"required,name"`
@@ -238,6 +253,7 @@ type Command struct {
 	Setup string `yaml:"setup"`
 }
 
+// CommandHook is a command used as a set-up/tear-down hook.
 type CommandHook struct {
 	// Name is an optional name to help identify the hook.
 	Name string `yaml:"name,omitempty" validate:"name"`
@@ -262,25 +278,29 @@ type CommandHook struct {
 	TimeoutSeconds int `yaml:"timeoutSeconds,omitempty"`
 }
 
+// WaitForHook is a hook that waits for external resources to be available,
+// running or ready.
 type WaitForHook struct {
 	// Resources lists the resource kinds to wait for.
 	Resources []WaitForResourceKind `yaml:"resources"`
 }
 
+// WaitForResourceKind defines what kind of waiting should be performed.
 type WaitForResourceKind string
 
 const (
-	// Wait for all the services in the stack to have at least one
+	// Endpoints waits for all the services in the stack to have at least one
 	// endpoint ready.
 	Endpoints = WaitForResourceKind("endpoints")
 
-	// Wait for all the pods in the stack to be ready.
+	// Pods waits for all the pods in the stack to be ready.
 	Pods = WaitForResourceKind("pods")
 
-	// Wait for at least one pod up and running per service.
+	// OnePodPerService waits for at least one pod up and running per service.
 	OnePodPerService = WaitForResourceKind("onePodPerService")
 )
 
+// HTTPGet is a hook that waits for a URL to returns a 2xx status.
 type HTTPGet struct {
 	// URL to send the GET request to.  The URL is subject to
 	// template substitution.

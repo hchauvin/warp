@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
 
+// Package tags implements tag-based filtering.
 package tags
 
 import (
@@ -8,11 +9,13 @@ import (
 	"strings"
 )
 
+// Filter holds a compiled tag filter.
 type Filter struct {
 	includeTagSet map[string]struct{}
 	excludeTagSet map[string]struct{}
 }
 
+// CompileFilter compiles a tag filter.
 func CompileFilter(filter string) (*Filter, error) {
 	compiled := &Filter{
 		includeTagSet: make(map[string]struct{}),
@@ -34,6 +37,7 @@ func CompileFilter(filter string) (*Filter, error) {
 	return compiled, nil
 }
 
+// Apply applies a tag filter to a slice of tags.
 func (filter *Filter) Apply(tags []string) bool {
 	if len(tags) == 0 {
 		if len(filter.includeTagSet) == 0 {

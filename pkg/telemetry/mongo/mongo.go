@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
 
+// Package mongo implements telemetry on top of MongoDB.
 package mongo
 
 import (
@@ -50,6 +51,7 @@ type telemetryDocument struct {
 	Payload interface{}
 }
 
+// Send implements telemetry.Client.
 func (mongo *client) Send(payload interface{}) {
 	go func() {
 		doc := telemetryDocument{
@@ -67,14 +69,15 @@ func (mongo *client) Send(payload interface{}) {
 	}()
 }
 
+// Close implements telemetry.Client.
 func (mongo *client) Close() {
 	mongo.client.Disconnect(context.TODO())
 }
 
 func getType(myvar interface{}) string {
-	if t := reflect.TypeOf(myvar); t.Kind() == reflect.Ptr {
+	t := reflect.TypeOf(myvar)
+	if t.Kind() == reflect.Ptr {
 		return "*" + t.Elem().Name()
-	} else {
-		return t.Name()
 	}
+	return t.Name()
 }

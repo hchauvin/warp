@@ -3,16 +3,27 @@
 
 package interactive
 
+// SetStateEvent reports the setting of the state of an
+// allocation.
 type SetStateEvent struct {
-	Name  string
+	// Name is the name of the allocation.
+	Name string
+	// State is the next state of the allocation.
 	State State
+	// Stage further qualifies the state.
 	Stage string
 }
 
+// State is the state of an allocation.
 type State string
 
 const (
-	Initial   State = "initial"
-	Started         = "started"
-	Completed       = "completed"
+	// Initial is the state an allocation is initially in.
+	Initial State = "initial"
+	// Started is the state an allocation is in after
+	// work has started.
+	Started = "started"
+	// Completed is the state an allocation is in after
+	// work is complete.
+	Completed = "completed"
 )

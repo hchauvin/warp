@@ -10,12 +10,15 @@ import (
 	"strings"
 )
 
+// FixedTerminalLines displays a fixed array of lines.
 type FixedTerminalLines struct {
 	curLineCount int
 }
 
 var ansi = regexp.MustCompile(`^\x1b\[[0-9;]*[a-zA-Z]`)
 
+// Replace replaces the array of lines in the console terminal.
+// Previous lines are erased.
 func (fixed *FixedTerminalLines) Replace(lines []string) error {
 	screenWidth, screenHeight, err := terminal.GetSize(int(os.Stdout.Fd()))
 	if err != nil {

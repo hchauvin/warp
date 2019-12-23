@@ -7,18 +7,23 @@ import (
 	"io"
 )
 
+// NoopReporter is a no-op reporter.
 type NoopReporter struct{}
 
+// EnvironmentSetupResult implements Reporter.
 func (reporter *NoopReporter) EnvironmentSetupResult(result *EnvironmentSetupResult) {
 }
 
+// CommandOutput implements Reporter.
 func (reporter *NoopReporter) CommandOutput(info *CommandInfo) (io.WriteCloser, error) {
 	return &discardCloser{}, nil
 }
 
+// CommandResult implements Reporter.
 func (reporter *NoopReporter) CommandResult(result *CommandResult) {
 }
 
+// Finalize implements Reporter.
 func (reporter *NoopReporter) Finalize() error {
 	return nil
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
 
-// env implements environment variable templating.
+// Package env implements environment variable templating.
 package env
 
 import (
@@ -17,11 +17,14 @@ import (
 	"text/template"
 )
 
+// Transformer is used to to expand gotemplates in environment
+// variables.
 type Transformer struct {
 	funcs templateFuncs
 }
 
-func NewTranformer(
+// NewTransformer creates a new Transformer.
+func NewTransformer(
 	cfg *config.Config,
 	name names.Name,
 	k8sClient *k8s.K8s,
@@ -36,7 +39,7 @@ func NewTranformer(
 	return &Transformer{funcs}
 }
 
-// Gets get the expansion of a template.
+// Get gets the expansion of a template.
 func (trans *Transformer) Get(
 	ctx context.Context,
 	tplStr string,

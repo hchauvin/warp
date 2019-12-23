@@ -96,13 +96,10 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 			}
 		})
 	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	return nil
+	return g.Wait()
 }
 
-// WaitForEndpoints waits for all the services to have at least one ready endpoint.
+// WaitForOnePodPerService waits for all the services to have at least one ready endpoint.
 func (k8s *K8s) WaitForOnePodPerService(ctx context.Context, k8sNamespace string, name names.Name) error {
 	const subLogDomain = logDomain + ":waitFor:onePodPerService"
 
@@ -152,10 +149,7 @@ func (k8s *K8s) WaitForOnePodPerService(ctx context.Context, k8sNamespace string
 			return nil
 		})
 	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	return nil
+	return g.Wait()
 }
 
 type podStatus string
@@ -170,7 +164,7 @@ const (
 	terminating = podStatus("terminating")
 )
 
-// WaitForPodsAllRunning waits for all the pods to be running.
+// WaitForAllPodsRunning waits for all the pods to be running.
 func (k8s *K8s) WaitForAllPodsRunning(
 	ctx context.Context,
 	k8sNamespace string,
@@ -207,7 +201,7 @@ func (k8s *K8s) WaitForAllPodsRunning(
 	}
 }
 
-// WaitForPodsAllRunning waits for at least one pod to be running.
+// WaitForOnePodRunning waits for at least one pod to be running.
 func (k8s *K8s) WaitForOnePodRunning(
 	ctx context.Context,
 	k8sNamespace string,
