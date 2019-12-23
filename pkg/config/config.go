@@ -151,6 +151,9 @@ type Resource struct {
 	Group    string
 	Version  string
 	Resource string
+	// Namespaced indicates whether the resource is namespaced or
+	// cluster-wide.
+	Namespaced bool
 }
 
 // Telemetry configures telemetry.  Telemetry is used to gather

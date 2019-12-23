@@ -151,7 +151,7 @@ type DeployCfg struct {
 	PipelinePath string
 }
 
-// Deploy implements the "lint" command.
+// Deploy implements the "deploy" command.
 func Deploy(ctx context.Context, deployCfg *DeployCfg) error {
 	cfg, err := readConfig(deployCfg.WorkingDir, deployCfg.ConfigPath)
 	if err != nil {
