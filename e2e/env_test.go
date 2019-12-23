@@ -22,7 +22,6 @@ func TestEnv(t *testing.T) {
 		PipelinePath: "env",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }

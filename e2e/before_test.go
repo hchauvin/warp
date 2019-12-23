@@ -18,7 +18,6 @@ func TestBefore(t *testing.T) {
 		PipelinePath: "before",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }

@@ -33,7 +33,6 @@ func TestRegistry(t *testing.T) {
 		PipelinePath: "container/registry",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }

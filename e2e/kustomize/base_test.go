@@ -30,7 +30,6 @@ func TestBase(t *testing.T) {
 		PipelinePath: "kustomize/base",
 		Tail:         true,
 		Run:          []string{"test"},
-		Rm:           false,
 	})
 	assert.NoError(t, err)
 }
