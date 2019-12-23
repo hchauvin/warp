@@ -1,7 +1,7 @@
-// run implements the "run" step of pipelines.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package run implements the "run" step of pipelines.
 package run
 
 import (
@@ -73,6 +73,8 @@ func Exec(
 	return nil
 }
 
+// ExecHooks executes a slice of hooks.  The hooks can depend on
+// each other.  They cannot depend on hooks not defined in the slice.
 func ExecHooks(
 	ctx context.Context,
 	cfg *config.Config,
@@ -110,11 +112,11 @@ func ExecHooks(
 				defer cancel()
 			}
 
-			var hookId string
+			var hookID string
 			if hook.Name != "" {
-				hookId = fmt.Sprintf("#%d(%s)", i, hook.Name)
+				hookID = fmt.Sprintf("#%d(%s)", i, hook.Name)
 			} else {
-				hookId = fmt.Sprintf("#%d", i)
+				hookID = fmt.Sprintf("#%d", i)
 			}
 
 			execDone := make(chan struct{})
@@ -127,19 +129,19 @@ func ExecHooks(
 					case <-execDone:
 						return
 					case <-time.After(10 * time.Second):
-						cfg.Logger().Info("run:exec-hooks", "hook %s: still running...", hookId)
+						cfg.Logger().Info("run:exec-hooks", "hook %s: still running...", hookID)
 					}
 				}
 			}()
 			if err := execHook(hookCtx, cfg, name, specName, i, &hook, sharedEnv, k8sClient); err != nil {
-				return fmt.Errorf("hook %s: %s", hookId, err)
+				return fmt.Errorf("hook %s: %s", hookID, err)
 			}
 
 			if hook.Name != "" {
 				close(done[hook.Name])
-				cfg.Logger().Info("run:exec-hooks", "hook %s: success", hookId)
+				cfg.Logger().Info("run:exec-hooks", "hook %s: success", hookID)
 			} else {
-				cfg.Logger().Info("run:exec-hooks", "hook %s: success", hookId)
+				cfg.Logger().Info("run:exec-hooks", "hook %s: success", hookID)
 			}
 			return nil
 		})
@@ -205,6 +207,8 @@ func execHook(
 	return nil
 }
 
+// ExecBaseCommand executes a base command.  Base commands can be test commands,
+// hooks, batch commands, ...
 func ExecBaseCommand(
 	ctx context.Context,
 	cfg *config.Config,
@@ -221,7 +225,7 @@ func ExecBaseCommand(
 	if spec.WorkingDir != "" {
 		cmd.Dir = cfg.Path(spec.WorkingDir)
 	}
-	trans := env.NewTranformer(cfg, name, k8sClient)
+	trans := env.NewTransformer(cfg, name, k8sClient)
 	extraEnv := make([]string, len(sharedEnv)+len(spec.Env))
 	g, gctx := errgroup.WithContext(ctx)
 	for i, e := range sharedEnv {

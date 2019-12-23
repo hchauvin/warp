@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
+
 package k8s
 
 import (
@@ -9,10 +12,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// GcOptions are options for the Gc function.
 type GcOptions struct {
+	// PreservePersistentVolumeClaims indicates whether to preserve
+	// the persistent volume claims instead of garbage-collecting them.
 	PreservePersistentVolumeClaims bool
 }
 
+// Gc garbage-collects resources that pertain to a given stack.
 func (k8s *K8s) Gc(ctx context.Context, cfg *config.Config, name names.Name, options *GcOptions) error {
 	namespace := "default"
 	labelSelector := Labels{
@@ -232,9 +239,5 @@ func (k8s *K8s) Gc(ctx context.Context, cfg *config.Config, name names.Name, opt
 			return gd.Wait()
 		})
 	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	return nil
+	return g.Wait()
 }

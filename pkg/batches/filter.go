@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package batches
 
 import (
@@ -7,6 +8,8 @@ import (
 	"github.com/hchauvin/warp/pkg/tags"
 )
 
+// Filter either removes from a Batch definition all the commands that
+// do not pass the tag filter, or focus the Batch on only one command.
 func (batch *Batch) Filter(tagFilter string, focus string) (*Batch, error) {
 	var commands []BatchCommand
 	if focus != "" {

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package fsreporter
 
 import (
@@ -14,17 +15,20 @@ import (
 	"sync"
 )
 
+// FsReporter implements batch.Reporter.
 type FsReporter struct {
 	Path   string
 	Report Report
 	mut    sync.Mutex
 }
 
+// Report is the in-memory report that is produced by this reporter.
 type Report struct {
 	EnvironmentSetupResults []batch.EnvironmentSetupResult
 	Results                 []batch.CommandResult
 }
 
+// New creates an FsReporter.
 func New(path string) (*FsReporter, error) {
 	if err := os.RemoveAll(path); err != nil {
 		return nil, err
@@ -34,12 +38,14 @@ func New(path string) (*FsReporter, error) {
 	}, nil
 }
 
+// EnvironmentSetupResult implements batch.Reporter.
 func (reporter *FsReporter) EnvironmentSetupResult(result *batch.EnvironmentSetupResult) {
 	reporter.mut.Lock()
 	defer reporter.mut.Unlock()
 	reporter.Report.EnvironmentSetupResults = append(reporter.Report.EnvironmentSetupResults, *result)
 }
 
+// CommandOutput implements batch.Reporter.
 func (reporter *FsReporter) CommandOutput(info *batch.CommandInfo) (io.WriteCloser, error) {
 	path := reporter.commandOutputPath(info)
 
@@ -50,12 +56,14 @@ func (reporter *FsReporter) CommandOutput(info *batch.CommandInfo) (io.WriteClos
 	return os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 }
 
+// CommandResult implements batch.Reporter.
 func (reporter *FsReporter) CommandResult(result *batch.CommandResult) {
 	reporter.mut.Lock()
 	defer reporter.mut.Unlock()
 	reporter.Report.Results = append(reporter.Report.Results, *result)
 }
 
+// Finalize implements batch.Reporter.
 func (reporter *FsReporter) Finalize() error {
 	path := filepath.Join(reporter.Path, "report.json")
 

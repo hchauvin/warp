@@ -1,4 +1,7 @@
-// proc extends the standard exec package to deal with processes
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
+
+// Package proc extends the standard exec package to deal with processes
 // in a more graceful way.
 package proc
 

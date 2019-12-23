@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package warp
 
 import (
@@ -28,12 +29,14 @@ import (
 
 const logDomain = "warp"
 
+// LintCfg configures the "lint" command.
 type LintCfg struct {
 	WorkingDir   string
 	ConfigPath   string
 	PipelinePath string
 }
 
+// Lint implements the "lint" command.
 func Lint(ctx context.Context, lintCfg *LintCfg) error {
 	cfg, err := readConfig(lintCfg.WorkingDir, lintCfg.ConfigPath)
 	if err != nil {
@@ -49,11 +52,7 @@ func Lint(ctx context.Context, lintCfg *LintCfg) error {
 		return err
 	}
 
-	if err := lint.Lint(ctx, cfg, pipeline); err != nil {
-		return err
-	}
-
-	return nil
+	return lint.Lint(ctx, cfg, pipeline)
 }
 
 // HoldConfig gives the configuration for the Hold function.
@@ -145,12 +144,14 @@ func Hold(holdCfg *HoldConfig) error {
 	return nil
 }
 
+// DeployCfg configures the "deploy" command.
 type DeployCfg struct {
 	WorkingDir   string
 	ConfigPath   string
 	PipelinePath string
 }
 
+// Deploy implements the "lint" command.
 func Deploy(ctx context.Context, deployCfg *DeployCfg) error {
 	cfg, err := readConfig(deployCfg.WorkingDir, deployCfg.ConfigPath)
 	if err != nil {
@@ -299,12 +300,10 @@ func Rm(rmCfg *RmCfg) error {
 			return stacks.Remove(context.Background(), cfg, pipeline, shortName)
 		})
 	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-	return nil
+	return g.Wait()
 }
 
+// GcCfg configures the "gc" command.
 type GcCfg struct {
 	WorkingDir                     string
 	ConfigPath                     string
@@ -313,6 +312,7 @@ type GcCfg struct {
 	DiscardPersistentVolumeClaims  bool
 }
 
+// Gc implements the "gc" command.
 func Gc(ctx context.Context, gcCfg *GcCfg) error {
 	cfg, err := readConfig(gcCfg.WorkingDir, gcCfg.ConfigPath)
 	if err != nil {

@@ -1,7 +1,7 @@
-// kustomize implements kustomize-based Kubernetes deployment.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package kustomize implements kustomize-based Kubernetes deployment.
 package kustomize
 
 import (
@@ -38,12 +38,12 @@ func Exec(
 		return err
 	}
 
-	if err := k8sClient.Apply(ctx, k8sResourcesPath, k8s.StackLabel+"="+name.DNSName()); err != nil {
-		return err
-	}
-	return nil
+	return k8sClient.Apply(ctx, k8sResourcesPath, k8s.StackLabel+"="+name.DNSName())
 }
 
+// ExpandResources expands the resources defined in a kustomization
+// into a YAML file, with one resource per YAML document.  The
+// path to this file is returned.
 func ExpandResources(
 	ctx context.Context,
 	cfg *config.Config,

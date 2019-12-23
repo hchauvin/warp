@@ -1,7 +1,7 @@
-// deploy implements the "deploy" steps of pipelines.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package deploy implements the "deploy" steps of pipelines.
 package deploy
 
 import (

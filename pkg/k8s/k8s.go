@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
+
+// Package k8s implements Kubernetes-specific code.
 package k8s
 
 import (
@@ -14,6 +18,7 @@ import (
 	"path/filepath"
 )
 
+// NewClient creates a new Kubernetes client.
 func NewClient(cfg *config.Config) (*rest.Config, *kubernetes.Clientset, error) {
 	var kubeconfig string
 	var defaultContext string
@@ -60,6 +65,7 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
+// K8s wraps a Kubernetes client.
 type K8s struct {
 	cfg        *config.Config
 	Clientset  *kubernetes.Clientset
@@ -68,6 +74,7 @@ type K8s struct {
 	Ports      *Ports
 }
 
+// New creates a new Kubernetes client wrapper.
 func New(cfg *config.Config) (*K8s, error) {
 	var kubeconfig string
 	var defaultContext string
@@ -119,6 +126,8 @@ func New(cfg *config.Config) (*K8s, error) {
 	return client, nil
 }
 
+// Apply executes "kubectl apply".  The resources matching the label
+// selector are pruned.
 func (k8s *K8s) Apply(ctx context.Context, resourcesPath string, labelSelector string) error {
 	cmd, err := k8s.KubectlCommandContext(ctx, "apply",
 		"-f", resourcesPath,
@@ -137,6 +146,7 @@ func (k8s *K8s) Apply(ctx context.Context, resourcesPath string, labelSelector s
 	return nil
 }
 
+// DeleteAll deletes all the Kubernetes resources that match the label selector.
 func (k8s *K8s) DeleteAll(ctx context.Context, labelSelector string) error {
 	cmd, err := k8s.KubectlCommandContext(ctx, "delete",
 		"all",
@@ -152,6 +162,7 @@ func (k8s *K8s) DeleteAll(ctx context.Context, labelSelector string) error {
 	return nil
 }
 
+// KubectlCommandContext returns a command object to call the kubectl command.
 func (k8s *K8s) KubectlCommandContext(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	kubectlPath, err := k8s.cfg.ToolPath(config.Kubectl)
 	if err != nil {
@@ -161,6 +172,9 @@ func (k8s *K8s) KubectlCommandContext(ctx context.Context, args ...string) (*exe
 	return k8s.KubectlLikeCommandContext(ctx, kubectlPath, args...)
 }
 
+// KubectlLikeCommandContext returns a command object to call the kubectl command,
+// or a command that behave similarly concerning the "--context" option
+// and the "KUBECONFIG" environment variable.
 func (k8s *K8s) KubectlLikeCommandContext(ctx context.Context, command string, args ...string) (*exec.Cmd, error) {
 	kcfg := k8s.cfg.Kubernetes
 	if kcfg == nil {

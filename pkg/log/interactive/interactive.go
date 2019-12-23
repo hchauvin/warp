@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package interactive
 
 import (
@@ -19,6 +20,8 @@ type allocationProgress struct {
 	completed *time.Time
 }
 
+// Report reports a stream of events in an interactive way, using
+// an array of fixed terminal lines.
 func Report(l *log.Logger, eventc <-chan interface{}, done <-chan struct{}) error {
 	start := time.Now()
 

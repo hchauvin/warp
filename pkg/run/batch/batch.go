@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package batch implements batch execution.
 package batch
 
 import (
@@ -31,6 +33,7 @@ import (
 
 const logDomain = "batch"
 
+// RunBatchOptions are the options for RunBatch.
 type RunBatchOptions struct {
 	Parallelism          int
 	MaxStacksPerPipeline int
@@ -40,6 +43,7 @@ type RunBatchOptions struct {
 	Events               chan<- interface{}
 }
 
+// Reporter is used by RunBatch to report on batch execution.
 type Reporter interface {
 	EnvironmentSetupResult(result *EnvironmentSetupResult)
 	CommandOutput(info *CommandInfo) (io.WriteCloser, error)
@@ -47,12 +51,16 @@ type Reporter interface {
 	Finalize() error
 }
 
+// EnvironmentInfo gives info on an environment a batch command
+// executed with.
 type EnvironmentInfo struct {
 	BatchID      string
 	StackName    string
 	PipelinePath string
 }
 
+// EnvironmentSetupResult contains the result of setting up
+// an environment.
 type EnvironmentSetupResult struct {
 	EnvironmentInfo
 	SetupType EnvironmentSetupType
@@ -61,19 +69,26 @@ type EnvironmentSetupResult struct {
 	Completed time.Time
 }
 
+// EnvironmentSetupType is the type of environment setup for
+// EnvironmentSetupResult.
 type EnvironmentSetupType string
 
 const (
-	EnvironmentDeployment     = EnvironmentSetupType("deployment")
+	// EnvironmentDeployment is used when an environment is deployed.
+	EnvironmentDeployment = EnvironmentSetupType("deployment")
+	// EnvironmentInitialization is used when an environment is initialized.
+	// Initialization occurs after deployment.
 	EnvironmentInitialization = EnvironmentSetupType("initialization")
 )
 
+// CommandInfo describes a batch command for reporting purposes.
 type CommandInfo struct {
 	BatchID string
 	Name    string
 	Tries   int
 }
 
+// CommandResult gives the result of a command, for reporting purposes.
 type CommandResult struct {
 	CommandInfo
 	Err       *string
@@ -344,7 +359,7 @@ func (runner *runner) hold(ctx context.Context, pipelineName string, exclusive b
 		name:          *name,
 		release:       release,
 		holdErrc:      holdErrc,
-		trans:         env.NewTranformer(runner.cfg, *name, runner.k8sClient),
+		trans:         env.NewTransformer(runner.cfg, *name, runner.k8sClient),
 		usageCount:    1,
 		exclusiveLock: exclusive,
 		deployedc:     make(chan struct{}),

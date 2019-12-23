@@ -25,12 +25,12 @@ func run() error {
 		return fmt.Errorf("expected ADDRESS env var")
 	}
 
-	indexHtml, err := ioutil.ReadFile("index.html")
+	indexHTML, err := ioutil.ReadFile("index.html")
 	if err != nil {
 		return fmt.Errorf("cannot read index.html: %v", err)
 	}
 
-	if err := ioutil.WriteFile("www/index.html", indexHtml, 0777); err != nil {
+	if err := ioutil.WriteFile("www/index.html", indexHTML, 0777); err != nil {
 		return fmt.Errorf("cannot write index.html file: %v", err)
 	}
 

@@ -1,7 +1,7 @@
-// stacks implements the acquisition and release of stacks, using name_manager.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package stacks implements the acquisition and release of stacks, using name_manager.
 package stacks
 
 import (
@@ -9,7 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	// Registers the local backend
 	_ "github.com/hchauvin/name_manager/pkg/local_backend"
+	// Registers the mongo backend
 	_ "github.com/hchauvin/name_manager/pkg/mongo_backend"
 	"github.com/hchauvin/name_manager/pkg/name_manager"
 	"github.com/hchauvin/warp/pkg/config"
@@ -26,6 +28,7 @@ import (
 	"os/signal"
 )
 
+// Hold uses name_manager to hold a stack for the given pipeline.
 func Hold(cfg *config.Config, pipeline *pipelines.Pipeline) (*names.Name, <-chan error, name_manager.ReleaseFunc, error) {
 	if pipeline.Stack.Name != "" {
 		errc := make(chan error)
@@ -143,7 +146,7 @@ func Exec(
 		}
 
 		envVars := make([]string, len(setup.Env))
-		trans := env.NewTranformer(cfg, execCfg.Name, k8sClient)
+		trans := env.NewTransformer(cfg, execCfg.Name, k8sClient)
 		g, gctx := errgroup.WithContext(ctx)
 		for i, envTpl := range setup.Env {
 			i, envTpl := i, envTpl
@@ -216,11 +219,7 @@ func Remove(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipelin
 	}
 	name := names.Name{Family: pipeline.Stack.Family, ShortName: shortName}
 
-	if err := deploy.CleanUp(ctx, cfg, pipeline, name, k8sClient); err != nil {
-		return err
-	}
-
-	return nil
+	return deploy.CleanUp(ctx, cfg, pipeline, name, k8sClient)
 }
 
 // List lists all the stack names for a pipeline.  If freeOnly is true, only the

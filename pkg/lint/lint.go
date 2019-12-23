@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package lint
 
 import (
@@ -14,6 +15,7 @@ import (
 	"github.com/hchauvin/warp/pkg/stacks/names"
 )
 
+// Lint lints the pipeline.  Linting occurs without deployment.
 func Lint(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline) error {
 	var name names.Name
 	if pipeline.Stack.Family != "" {

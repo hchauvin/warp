@@ -1,6 +1,6 @@
-// Run with `docker run --name some-mongo -p 27017:27017 mongo:bionic`
-// export MONGODB_URI="mongodb://127.0.0.1:27017"
-// export MONGODB_DATABASE="..." (optional)
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2019 Hadrien Chauvin
+
 package mongo
 
 import (
@@ -18,6 +18,10 @@ import (
 	"testing"
 	"time"
 )
+
+// Run with `docker run --name some-mongo -p 27017:27017 mongo:bionic`
+// export MONGODB_URI="mongodb://127.0.0.1:27017"
+// export MONGODB_DATABASE="..." (optional)
 
 func TestSend(t *testing.T) {
 	godotenv.Load("../../../.env")

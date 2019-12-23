@@ -1,7 +1,7 @@
-// log implements logging.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package log implements logging.
 package log
 
 import (
@@ -13,7 +13,9 @@ import (
 	"os/exec"
 )
 
+// Logger parameterizes logging.
 type Logger struct {
+	// Writer is the writer to write the logs to.
 	Writer      io.Writer
 	interactive bool
 }
@@ -22,6 +24,8 @@ var formatPrefix = color.New(color.Bold).SprintFunc()
 var formatWarningPrefix = color.New(color.FgMagenta).SprintFunc()
 var formatErrorPrefix = color.New(color.FgRed).SprintFunc()
 
+// SetInteractive turns the logger into an interactive logger.
+// In interactive mode, the cursor can move in the console terminal.
 func (l *Logger) SetInteractive(int bool) {
 	l.interactive = int
 }
@@ -32,13 +36,13 @@ func (l *Logger) Info(domain string, message string, args ...interface{}) {
 	l.printf(formatPrefix("%s: ")+message+"\n", args...)
 }
 
-// Info logs a warning message for the given log domain.
+// Warning logs a warning message for the given log domain.
 func (l *Logger) Warning(domain string, message string, args ...interface{}) {
 	args = append([]interface{}{domain}, args...)
 	l.printf(formatPrefix("%s: ")+formatWarningPrefix("WARNING: ")+message+"\n", args...)
 }
 
-// Info logs an error message for the given log domain.
+// Error logs an error message for the given log domain.
 func (l *Logger) Error(domain string, message string, args ...interface{}) {
 	args = append([]interface{}{domain}, args...)
 	l.printf(formatPrefix("%s: ")+formatErrorPrefix("ERROR: ")+message+"\n", args...)

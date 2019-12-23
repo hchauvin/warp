@@ -1,7 +1,7 @@
-// container implements deployment operations performed on the containers themselves.
-//
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
+// Package container implements deployment operations performed on the containers themselves.
 package container
 
 import (
@@ -16,6 +16,8 @@ import (
 	"sync"
 )
 
+// ImageRefs map an image reference placeholder to an actual image reference
+// that points to an image on a container registry.
 type ImageRefs map[string]string
 
 // Exec executes the deployment operations addressing the containers themselves.
