@@ -101,7 +101,6 @@ func main() {
 					DumpEnv:      c.String("dump_env"),
 					PersistEnv:   c.Bool("persist_env"),
 					Wait:         c.Bool("wait"),
-					Rm:           c.Bool("rm"),
 				})
 				return
 			},

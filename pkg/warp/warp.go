@@ -67,7 +67,6 @@ type HoldConfig struct {
 	DumpEnv      string
 	PersistEnv   bool
 	Wait         bool
-	Rm           bool
 }
 
 // Hold deploy a stacks, then hold it until either 1) the run specifications
@@ -129,12 +128,6 @@ func Hold(holdCfg *HoldConfig) error {
 		}, detachedErrc)
 		if err != nil && err != context.Canceled {
 			errs = append(errs, err.Error())
-		}
-	}
-
-	if holdCfg.Rm {
-		if err := stacks.Remove(context.Background(), cfg, pipeline, name.ShortName); err != nil {
-			errs = append(errs, fmt.Errorf("while cleaning: %v", err).Error())
 		}
 	}
 
