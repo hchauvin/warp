@@ -34,9 +34,9 @@ commands:
 var batch = Batch{
 	Pipelines: []Pipeline{
 		{
-			Name:      "foo",
-			Path:      "bar",
-			Setup:     "setup",
+			Name:  "foo",
+			Path:  "bar",
+			Setup: "setup",
 		},
 	},
 	Commands: []BatchCommand{
