@@ -9,14 +9,13 @@ require (
 	github.com/avast/retry-go v2.4.3+incompatible
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/fatih/color v1.7.0
-	github.com/go-playground/universal-translator v0.17.0 // indirect
-	github.com/go-playground/validator v9.30.2+incompatible
+	github.com/go-playground/validator v9.31.0+incompatible
+	github.com/go-playground/validator/v10 v10.1.0
 	github.com/google/uuid v1.1.1
 	github.com/hchauvin/name_manager v0.3.1
 	github.com/huandu/xstrings v1.2.1 // indirect
 	github.com/imdario/mergo v0.3.8
 	github.com/joho/godotenv v1.3.0
-	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
