@@ -3,7 +3,6 @@ module github.com/hchauvin/warp
 go 1.13
 
 require (
-	github.com/DataDog/zstd v1.4.4 // indirect
 	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
@@ -13,7 +12,7 @@ require (
 	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator v9.30.2+incompatible
 	github.com/google/uuid v1.1.1
-	github.com/hchauvin/name_manager v0.3.0
+	github.com/hchauvin/name_manager v0.3.1
 	github.com/huandu/xstrings v1.2.1 // indirect
 	github.com/imdario/mergo v0.3.8
 	github.com/joho/godotenv v1.3.0
@@ -22,7 +21,6 @@ require (
 	github.com/mattn/go-isatty v0.0.10 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/pelletier/go-toml v1.6.0
-	github.com/pkg/errors v0.8.1 // indirect
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.4.0
 	github.com/urfave/cli v1.22.2

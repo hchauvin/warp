@@ -99,6 +99,8 @@ github.com/hchauvin/name_manager v0.2.3 h1:6wl2m0D3A6xqI4mz015EAbnSUZ80kL5BtfuKj
 github.com/hchauvin/name_manager v0.2.3/go.mod h1:x+I/lhkEHhH4b1hz8K8MRTD7/aKl++Bd7cgXUiFd4bw=
 github.com/hchauvin/name_manager v0.3.0 h1:QUOIjms2UOlaBhpgkt0kVEy12bFZU5jBVFXHRSWWDHw=
 github.com/hchauvin/name_manager v0.3.0/go.mod h1:8nyGE0P4HeBo/6ZLCWlBinppXEWJTDD9igPIa6bQUvQ=
+github.com/hchauvin/name_manager v0.3.1 h1:xBedPiFZ/clBNpTmJLizni/x7xjNzMPYlmsUW7DTF4w=
+github.com/hchauvin/name_manager v0.3.1/go.mod h1:CLMrPl08gQGWvQOM0h1Hayv0gkc7pJX3RT+yt9k11T8=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/huandu/xstrings v1.2.1 h1:v6IdmkCnDhJG/S0ivr58PeIfg+tyhqQYy4YsCsQ0Pdc=
 github.com/huandu/xstrings v1.2.1/go.mod h1:y5/lhBue+AyNmUVz9RLU9xbLR0o4KIIExikq4ovT0aE=
