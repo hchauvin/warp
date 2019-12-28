@@ -318,3 +318,17 @@ workflows:
               ignore: /.*/
             tags:
               only: /v[0-9]+(\.[0-9]+)*(-.*)*/
+  flakiness-guard:
+    triggers:
+      - schedule:
+          # Every hour, repeat tests to check for flakiness
+          cron: "0 * * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - test-linux:
+          filters:
+            tags:
+              only: /^v.*/
