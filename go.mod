@@ -10,7 +10,7 @@ require (
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/fatih/color v1.7.0
 	github.com/go-playground/universal-translator v0.17.0 // indirect
-	github.com/go-playground/validator v9.30.2+incompatible
+	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/google/uuid v1.1.1
 	github.com/hchauvin/name_manager v0.3.1
 	github.com/huandu/xstrings v1.2.1 // indirect
