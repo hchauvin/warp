@@ -21,7 +21,7 @@ require (
 	github.com/pelletier/go-toml v1.6.0
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.4.0
-	github.com/urfave/cli v1.22.2
+	github.com/urfave/cli/v2/v2 v2.1.1
 	go.mongodb.org/mongo-driver v1.2.0
 	go.uber.org/atomic v1.5.1
 	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876
