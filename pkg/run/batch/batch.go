@@ -653,10 +653,12 @@ func (runner *runner) execCommand(
 			CommandInfo: info,
 			Started:     time.Now(),
 		}
-		err = procCmd.Run()
-		result.Completed = time.Now()
-
+		err = procCmd.Start()
 		<-scannerDone
+		if err == nil {
+			err = procCmd.Wait()
+		}
+		result.Completed = time.Now()
 
 		if err == nil {
 			cfg.Logger().Info("run:"+cmd.Name, "SUCCESS")
