@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package main
 
 import (
 	"context"
 	"fmt"
 	"github.com/hchauvin/warp/pkg/warp"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"os"
 )
 
@@ -24,18 +25,18 @@ func main() {
 	app.Usage = "Yet another CLI wrapper"
 
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "config",
 			Usage: "TOML project-wide config file.  The parent path of the config file is used as the workspace root.  All the file paths are given relative to the workspace root.",
 			Value: ".warprc.toml",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "cwd",
 			Usage: "Working directory",
 			Value: ".",
 		},
 	}
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		{
 			Name:        "lint",
 			Usage:       "Lints a stack",
@@ -45,8 +46,8 @@ func main() {
 				t := commandInvoked(c)
 				defer t.completed(err)
 				err = warp.Lint(context.Background(), &warp.LintCfg{
-					WorkingDir:   c.GlobalString("cwd"),
-					ConfigPath:   c.GlobalString("config"),
+					WorkingDir:   c.String("cwd"),
+					ConfigPath:   c.String("config"),
 					PipelinePath: c.Args().First(),
 				})
 				return
@@ -58,31 +59,31 @@ func main() {
 			ArgsUsage:   "<pipeline file>",
 			Description: "Holds a stack created from a specific pipeline.  The pipeline file is either directly the YAML specification, or a folder that contains a 'pipeline.yml' file.  The path is given relative to the workspace root (parent folder of the global TOML config).",
 			Flags: []cli.Flag{
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "tail",
 					Usage: "Shows container logs",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "dev",
 					Usage: "Executes the dev steps (file synchronization, port forwarding, ...)",
 				},
-				cli.StringSliceFlag{
+				&cli.StringSliceFlag{
 					Name:  "run",
 					Usage: "Runs programs in the 'commands' section, given their spec name",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "setup",
 					Usage: "Sets up",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "dump_env",
 					Usage: "Dumps env",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "persist_env",
 					Usage: "Persists the dumped env variables after warp exits",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "wait",
 					Usage: "Waits for interrupt (Ctl-C) before releasing the stack.  Always true when --run is not given.",
 				},
@@ -91,8 +92,8 @@ func main() {
 				t := commandInvoked(c)
 				defer t.completed(err)
 				err = warp.Hold(&warp.HoldConfig{
-					WorkingDir:   c.GlobalString("cwd"),
-					ConfigPath:   c.GlobalString("config"),
+					WorkingDir:   c.String("cwd"),
+					ConfigPath:   c.String("config"),
 					PipelinePath: c.Args().First(),
 					Dev:          c.Bool("dev"),
 					Tail:         c.Bool("tail"),
@@ -114,8 +115,8 @@ func main() {
 				t := commandInvoked(c)
 				defer t.completed(err)
 				err = warp.Deploy(context.Background(), &warp.DeployCfg{
-					WorkingDir:   c.GlobalString("cwd"),
-					ConfigPath:   c.GlobalString("config"),
+					WorkingDir:   c.String("cwd"),
+					ConfigPath:   c.String("config"),
 					PipelinePath: c.Args().First(),
 				})
 				return
@@ -126,38 +127,38 @@ func main() {
 			Usage:     "Executes a batch of commands",
 			ArgsUsage: "<batch file>",
 			Flags: []cli.Flag{
-				cli.IntFlag{
+				&cli.IntFlag{
 					Name:  "parallelism",
 					Usage: "Parallelism",
 					Value: 1,
 				},
-				cli.IntFlag{
+				&cli.IntFlag{
 					Name:  "max_stacks_per_pipeline",
 					Usage: "Max stacks per pipeline",
 					Value: 1,
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "tags",
 					Usage: "Test tag filter",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "focus",
 					Usage: "Test focus",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "bail",
 					Usage: "Bail out on first error",
 				},
-				cli.BoolFlag{
-					Name:   "advisory",
-					EnvVar: "BATCH_ADVISORY_RESULT",
-					Usage:  "Do not fail on error: the result (pass/fail) is advisory only.  If --bail is enabled, --advisory is ignored.",
+				&cli.BoolFlag{
+					Name:    "advisory",
+					EnvVars: []string{"BATCH_ADVISORY_RESULT"},
+					Usage:   "Do not fail on error: the result (pass/fail) is advisory only.  If --bail is enabled, --advisory is ignored.",
 				},
-				cli.StringFlag{
+				&cli.StringFlag{
 					Name:  "report",
 					Usage: "Output path to report folder",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "stream",
 					Usage: "Stream results instead of being in interactive mode",
 				},
@@ -166,8 +167,8 @@ func main() {
 				t := commandInvoked(c)
 				defer t.completed(err)
 				err = warp.Batch(context.Background(), &warp.BatchCfg{
-					WorkingDir:           c.GlobalString("cwd"),
-					ConfigPath:           c.GlobalString("config"),
+					WorkingDir:           c.String("cwd"),
+					ConfigPath:           c.String("config"),
 					BatchPath:            c.Args().First(),
 					Parallelism:          c.Int("parallelism"),
 					MaxStacksPerPipeline: c.Int("max_stacks_per_pipeline"),
@@ -186,11 +187,11 @@ func main() {
 			Usage:     "Garbage collect stacks, either from one family or all the families",
 			ArgsUsage: "[family]",
 			Flags: []cli.Flag{
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "preserve_pvc",
 					Usage: "Preserve persistent volume claims.  Overrides the default PVC behavior.",
 				},
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name:  "discard_pvc",
 					Usage: "Discard persistent volume claims as well.  Overrides the default PVC behavior.",
 				},
@@ -199,8 +200,8 @@ func main() {
 				t := commandInvoked(c)
 				defer t.completed(err)
 				err = warp.Gc(context.Background(), &warp.GcCfg{
-					WorkingDir:                     c.GlobalString("cwd"),
-					ConfigPath:                     c.GlobalString("config"),
+					WorkingDir:                     c.String("cwd"),
+					ConfigPath:                     c.String("config"),
 					Family:                         c.Args().First(),
 					PreservePersistentVolumeClaims: c.Bool("preserve_pvc"),
 					DiscardPersistentVolumeClaims:  c.Bool("discard_pvc"),

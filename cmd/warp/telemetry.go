@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 Hadrien Chauvin
+
 package main
 
 import (
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/telemetry"
 	_ "github.com/hchauvin/warp/pkg/telemetry/mongo"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 	"os"
 	"path/filepath"
 	"time"
@@ -18,7 +19,7 @@ type commandTelemetry struct {
 }
 
 func commandInvoked(c *cli.Context) *commandTelemetry {
-	cfg, err := readConfig(c.GlobalString("cwd"), c.GlobalString("config"))
+	cfg, err := readConfig(c.String("cwd"), c.String("config"))
 	if err != nil {
 		return &commandTelemetry{}
 	}
