@@ -9,7 +9,7 @@ require (
 	github.com/avast/retry-go v2.4.3+incompatible
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
-	github.com/fatih/color v1.7.0
+	github.com/fatih/color v1.8.0
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/go-playground/validator/v10 v10.1.0
 	github.com/google/uuid v1.1.1
