@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.0.2
 	github.com/avast/retry-go v2.4.3+incompatible
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
-	github.com/fatih/color v1.7.0
+	github.com/fatih/color v1.8.0
 	github.com/go-playground/validator v9.31.0+incompatible
 	github.com/go-playground/validator/v10 v10.1.0
 	github.com/google/uuid v1.1.1
