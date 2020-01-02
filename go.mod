@@ -7,6 +7,7 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/Masterminds/sprig/v3 v3.0.2
 	github.com/avast/retry-go v2.4.3+incompatible
+	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/fatih/color v1.7.0
 	github.com/go-playground/validator v9.31.0+incompatible
@@ -21,7 +22,7 @@ require (
 	github.com/pelletier/go-toml v1.6.0
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.4.0
-	github.com/urfave/cli v1.22.2
+	github.com/urfave/cli/v2 v2.1.1
 	go.mongodb.org/mongo-driver v1.2.0
 	go.uber.org/atomic v1.5.1
 	golang.org/x/crypto v0.0.0-20191227163750-53104e6ec876
