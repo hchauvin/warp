@@ -76,10 +76,11 @@ func TestHttpGetRetry(t *testing.T) {
 	backoffs := 0
 	after := func(d time.Duration) <-chan time.Time {
 		c := make(chan time.Time, 1)
-		c <- time.Now()
 		backoffs++
 		if backoffs == maxBackoffs {
 			cancel()
+		} else {
+			c <- time.Now()
 		}
 		return c
 	}
@@ -93,7 +94,8 @@ func TestHttpGetRetry(t *testing.T) {
 	)
 
 	assert.Error(t, err)
-	assert.Equal(t, maxBackoffs+1, strings.Count(logWriter.String(), "non-2xx status code"))
+	fmt.Printf("LOG %s\n", logWriter.String())
+	assert.Equal(t, maxBackoffs, strings.Count(logWriter.String(), "non-2xx status code"))
 }
 
 func TestHttpGetHeaders(t *testing.T) {
