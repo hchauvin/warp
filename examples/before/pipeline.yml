@@ -22,7 +22,7 @@ setups:
           - waitFor
         name: waitForEcho
       - run:
-          workingDir: before
+          workingDir: before/true
           command: ['go', 'run', 'true.go']
 commands:
   - name: test
