@@ -7,14 +7,102 @@ import (
 	"context"
 	"fmt"
 	"github.com/avast/retry-go"
+	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/k8s"
+	"github.com/hchauvin/warp/pkg/stacks/names"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"regexp"
 	"strings"
+	"sync"
+	"text/template"
 )
 
-func (funcs *templateFuncs) k8sServiceAddress(
+func K8sTemplateFuncs(cfg *config.Config, name names.Name, k8sClient *k8s.K8s) *k8sTemplateFuncs {
+	return &k8sTemplateFuncs{
+		cfg,
+		name,
+		k8sClient,
+		sync.RWMutex{},
+		make(map[string]cacheEntry),
+	}
+}
+
+type k8sTemplateFuncs struct {
+	cfg       *config.Config
+	name      names.Name
+	k8sClient *k8s.K8s
+	cacheMut  sync.RWMutex
+	cache     map[string]cacheEntry
+}
+
+func (funcs *k8sTemplateFuncs) TxtFuncMap(ctx context.Context) template.FuncMap {
+	return map[string]interface{}{
+		"serviceAddress": func(service string, exposedTCPPort int) (string, error) {
+			return funcs.memoize(
+				func() (string, error) {
+					return funcs.serviceAddress(ctx, service, exposedTCPPort)
+				},
+				"serviceAddress",
+				service,
+				exposedTCPPort,
+			)
+		},
+		"k8sServiceAddress": func(namespace, service string, exposedTCPPort int) (string, error) {
+			return funcs.memoize(
+				func() (string, error) {
+					return funcs.k8sServiceAddress(ctx, namespace, service, exposedTCPPort)
+				},
+				"k8sServiceAddress",
+				namespace,
+				service,
+				exposedTCPPort,
+			)
+		},
+		"k8sServiceName": func(namespace, service string) (string, error) {
+			return funcs.memoize(
+				func() (string, error) {
+					return funcs.k8sServiceName(ctx, namespace, service)
+				},
+				"k8sServiceName",
+				namespace,
+				service,
+			)
+		},
+		"k8sConfigMapKey": func(namespace, name, key string) (string, error) {
+			return funcs.memoize(
+				func() (string, error) {
+					return funcs.k8sConfigMapKey(ctx, namespace, name, key)
+				},
+				"k8sConfigMapKey",
+				namespace,
+				name,
+				key,
+			)
+		},
+		"k8sSecretKey": func(namespace, name, key string) (string, error) {
+			return funcs.memoize(
+				func() (string, error) {
+					return funcs.k8sSecretKey(ctx, namespace, name, key)
+				},
+				"k8sSecretKey",
+				namespace,
+				name,
+				key,
+			)
+		},
+	}
+}
+
+func (funcs *k8sTemplateFuncs) serviceAddress(
+	ctx context.Context,
+	service string,
+	exposedTCPPort int,
+) (string, error) {
+	return funcs.k8sServiceAddress(ctx, "default", service, exposedTCPPort)
+}
+
+func (funcs *k8sTemplateFuncs) k8sServiceAddress(
 	ctx context.Context,
 	namespace string,
 	service string,
@@ -47,7 +135,7 @@ func (funcs *templateFuncs) k8sServiceAddress(
 	return fmt.Sprintf("127.0.0.1:%d", port), nil
 }
 
-func (funcs *templateFuncs) k8sServiceName(
+func (funcs *k8sTemplateFuncs) k8sServiceName(
 	ctx context.Context,
 	namespace string,
 	service string,
@@ -78,7 +166,7 @@ func (funcs *templateFuncs) k8sServiceName(
 	return name, nil
 }
 
-func (funcs *templateFuncs) k8sConfigMapKey(
+func (funcs *k8sTemplateFuncs) k8sConfigMapKey(
 	ctx context.Context,
 	namespace string,
 	name string,
@@ -126,7 +214,7 @@ func (funcs *templateFuncs) k8sConfigMapKey(
 	return val, nil
 }
 
-func (funcs *templateFuncs) k8sSecretKey(
+func (funcs *k8sTemplateFuncs) k8sSecretKey(
 	ctx context.Context,
 	namespace string,
 	name string,
@@ -172,4 +260,19 @@ func (funcs *templateFuncs) k8sSecretKey(
 	}
 
 	return string(val), nil
+}
+
+func (funcs *k8sTemplateFuncs) memoize(f func() (string, error), fname string, args ...interface{}) (string, error) {
+	hash := fmt.Sprintf("%s %v", fname, args)
+	funcs.cacheMut.RLock()
+	cached, ok := funcs.cache[hash]
+	funcs.cacheMut.RUnlock()
+	if ok {
+		return cached.string, cached.error
+	}
+	ans, err := f()
+	funcs.cacheMut.Lock()
+	funcs.cache[hash] = cacheEntry{ans, err}
+	funcs.cacheMut.Unlock()
+	return ans, err
 }

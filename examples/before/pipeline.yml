@@ -21,6 +21,9 @@ setups:
         dependsOn:
           - waitFor
         name: waitForEcho
+      - run:
+          workingDir: before/true
+          command: ['go', 'run', 'true.go']
 commands:
   - name: test
     setup: setup0

@@ -146,7 +146,7 @@ func Exec(
 		}
 
 		envVars := make([]string, len(setup.Env))
-		trans := env.NewTransformer(cfg, execCfg.Name, k8sClient)
+		trans := env.NewTransformer(env.K8sTemplateFuncs(cfg, execCfg.Name, k8sClient))
 		g, gctx := errgroup.WithContext(ctx)
 		for i, envTpl := range setup.Env {
 			i, envTpl := i, envTpl

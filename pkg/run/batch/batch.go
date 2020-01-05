@@ -359,7 +359,7 @@ func (runner *runner) hold(ctx context.Context, pipelineName string, exclusive b
 		name:          *name,
 		release:       release,
 		holdErrc:      holdErrc,
-		trans:         env.NewTransformer(runner.cfg, *name, runner.k8sClient),
+		trans:         env.NewTransformer(env.K8sTemplateFuncs(runner.cfg, *name, runner.k8sClient)),
 		usageCount:    1,
 		exclusiveLock: exclusive,
 		deployedc:     make(chan struct{}),
