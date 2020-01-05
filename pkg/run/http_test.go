@@ -137,7 +137,9 @@ func newHttpGetTestServer(t *testing.T, handle func(w http.ResponseWriter, r *ht
 
 	go func() {
 		if err := srv.Serve(listener); err != nil {
-			t.Fatalf("%v", err)
+			if err != http.ErrServerClosed {
+				t.Fatalf("%v", err)
+			}
 		}
 	}()
 
