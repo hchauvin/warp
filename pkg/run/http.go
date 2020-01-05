@@ -6,11 +6,9 @@ package run
 import (
 	"context"
 	"fmt"
-	"github.com/hchauvin/warp/pkg/config"
-	"github.com/hchauvin/warp/pkg/k8s"
+	"github.com/hchauvin/warp/pkg/log"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/run/env"
-	"github.com/hchauvin/warp/pkg/stacks/names"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"net/http"
 	"time"
@@ -18,13 +16,11 @@ import (
 
 func httpGet(
 	ctx context.Context,
-	cfg *config.Config,
-	name names.Name,
+	logger *log.Logger,
 	spec *pipelines.HTTPGet,
-	k8sClient *k8s.K8s,
+	trans *env.Transformer,
+	after func(d time.Duration) <-chan time.Time,
 ) error {
-	trans := env.NewTransformer(cfg, name, k8sClient)
-
 	url, err := trans.Get(ctx, spec.URL)
 	if err != nil {
 		return fmt.Errorf("cannot transform env vars: %v", err)
@@ -68,12 +64,12 @@ func httpGet(
 			}
 		}
 
-		cfg.Logger().Info("run:hook:httpGet", "%s - %v", urlWithResolution, err)
+		logger.Info("run:hook:httpGet", "%s - %v", urlWithResolution, err)
 
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(backoff.Step()):
+		case <-after(backoff.Step()):
 		}
 	}
 }

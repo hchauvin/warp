@@ -3,22 +3,26 @@ module github.com/hchauvin/warp
 go 1.13
 
 require (
+	github.com/Masterminds/goutils v1.1.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
-	github.com/Masterminds/sprig/v3 v3.0.2
 	github.com/avast/retry-go v2.4.3+incompatible
+	github.com/benbjohnson/clock v1.0.0
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/fatih/color v1.8.0
+	github.com/go-playground/universal-translator v0.17.0 // indirect
 	github.com/go-playground/validator v9.31.0+incompatible
-	github.com/go-playground/validator/v10 v10.1.0
 	github.com/google/uuid v1.1.1
 	github.com/hchauvin/name_manager v0.3.1
 	github.com/huandu/xstrings v1.2.1 // indirect
 	github.com/imdario/mergo v0.3.8
 	github.com/joho/godotenv v1.3.0
+	github.com/julienschmidt/httprouter v1.3.0
+	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
+	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/pelletier/go-toml v1.6.0
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.4.0

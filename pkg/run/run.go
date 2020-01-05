@@ -199,7 +199,8 @@ func execHook(
 			return err
 		}
 	} else if hook.HTTPGet != nil {
-		if err := httpGet(ctx, cfg, name, hook.HTTPGet, k8sClient); err != nil {
+		trans := env.NewTransformer(env.K8sTemplateFuncs(cfg, name, k8sClient))
+		if err := httpGet(ctx, cfg.Logger(), hook.HTTPGet, trans, time.After); err != nil {
 			return err
 		}
 	}
@@ -225,7 +226,7 @@ func ExecBaseCommand(
 	if spec.WorkingDir != "" {
 		cmd.Dir = cfg.Path(spec.WorkingDir)
 	}
-	trans := env.NewTransformer(cfg, name, k8sClient)
+	trans := env.NewTransformer(env.K8sTemplateFuncs(cfg, name, k8sClient))
 	extraEnv := make([]string, len(sharedEnv)+len(spec.Env))
 	g, gctx := errgroup.WithContext(ctx)
 	for i, e := range sharedEnv {
