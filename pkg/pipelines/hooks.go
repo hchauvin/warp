@@ -47,19 +47,26 @@ func dedupeAndValidateCommandHooks(hooks []CommandHook) (dedupedHooks []CommandH
 }
 
 func visitHookDependencies(namedHooks map[string]CommandHook, hookName string, hook *CommandHook, visited map[string]struct{}) error {
-	if _, ok := visited[hook.Name]; ok {
-		path := make([]string, len(visited))
-		for id := range visited {
-			path = append(path, id)
+	var nextVisited map[string]struct{}
+	if hook.Name == "" {
+		nextVisited = visited
+	} else {
+		if _, ok := visited[hook.Name]; ok {
+			path := make([]string, 0, len(visited))
+			for id := range visited {
+				path = append(path, id)
+			}
+			return fmt.Errorf("cycle detected: %s", strings.Join(path, " -> "))
 		}
-		return fmt.Errorf("cycle detected: %s", strings.Join(path, " -> "))
-	}
-	for _, dep := range hook.DependsOn {
+
 		nextVisited := make(map[string]struct{}, len(visited)+1)
 		for id := range visited {
 			nextVisited[id] = struct{}{}
 		}
-		nextVisited[dep] = struct{}{}
+		nextVisited[hook.Name] = struct{}{}
+	}
+
+	for _, dep := range hook.DependsOn {
 		nextHook, ok := namedHooks[dep]
 		if !ok {
 			return fmt.Errorf(

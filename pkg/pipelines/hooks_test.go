@@ -50,6 +50,16 @@ func TestHooksCycle(t *testing.T) {
 	assert.Contains(t, err.Error(), "cycle detected")
 }
 
+func TestHooksAnonymous(t *testing.T) {
+	hooks := []CommandHook{
+		{Name: "foo", WaitFor: waitFor},
+		{DependsOn: []string{"foo"}, WaitFor: waitFor},
+	}
+
+	_, err := dedupeAndValidateCommandHooks(hooks)
+	assert.NoError(t, err)
+}
+
 func TestHooksDepNotExists(t *testing.T) {
 	hooks := []CommandHook{
 		{Name: "foo", DependsOn: []string{"unknown"}, WaitFor: waitFor},
