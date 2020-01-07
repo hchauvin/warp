@@ -321,8 +321,8 @@ workflows:
   flakiness-guard:
     triggers:
       - schedule:
-          # Every hour, repeat tests to check for flakiness
-          cron: "0 * * * *"
+          # Every 6 hours, repeat tests to check for flakiness
+          cron: "0 */6 * * *"
           filters:
             branches:
               only:
