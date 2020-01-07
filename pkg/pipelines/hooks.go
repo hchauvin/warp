@@ -59,7 +59,7 @@ func visitHookDependencies(namedHooks map[string]CommandHook, hookName string, h
 			return fmt.Errorf("cycle detected: %s", strings.Join(path, " -> "))
 		}
 
-		nextVisited := make(map[string]struct{}, len(visited)+1)
+		nextVisited = make(map[string]struct{}, len(visited)+1)
 		for id := range visited {
 			nextVisited[id] = struct{}{}
 		}
