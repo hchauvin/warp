@@ -121,6 +121,22 @@ dev:
 	assert.Contains(t, err.Error(), "invalid pipeline config")
 }
 
+func TestFamilyOrName(t *testing.T) {
+	var pipeline = []byte(`
+stack: {}
+`)
+
+	cfg := &config.Config{WorkspaceDir: "/workspace"}
+
+	fs := afero.NewMemMapFs()
+	err := afero.WriteFile(fs, "/workspace/base/pipeline.yml", pipeline, 0666)
+	assert.NoError(t, err)
+
+	_, err = ReadFs(cfg, "base/pipeline.yml", fs)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "either stack.name or stack.family must be given")
+}
+
 var onePipelineBytes = []byte(`
 stack:
   family: foo

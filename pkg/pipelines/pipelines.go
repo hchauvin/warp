@@ -58,6 +58,16 @@ func (setups Setups) Get(name string) (*Setup, error) {
 		strings.Join(setups.Names(), " "))
 }
 
+// Get gets the setup given its name.  Panics if the setup cannot
+// be found.
+func (setups Setups) MustGet(name string) *Setup {
+	s, err := setups.Get(name)
+	if err != nil {
+		panic(err.Error())
+	}
+	return s
+}
+
 // Names gets a slice of all the setup names.
 func (setups Setups) Names() []string {
 	names := make([]string, len(setups))
