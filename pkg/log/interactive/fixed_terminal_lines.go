@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// FixedTerminalLines displays a fixed array of lines.
-type FixedTerminalLines struct {
+// fixedTerminalLines displays a fixed array of lines.
+type fixedTerminalLines struct {
 	curLineCount int
 }
 
@@ -19,7 +19,7 @@ var ansi = regexp.MustCompile(`^\x1b\[[0-9;]*[a-zA-Z]`)
 
 // Replace replaces the array of lines in the console terminal.
 // Previous lines are erased.
-func (fixed *FixedTerminalLines) Replace(lines []string) error {
+func (fixed *fixedTerminalLines) replace(lines []string) error {
 	screenWidth, screenHeight, err := terminal.GetSize(int(os.Stdout.Fd()))
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func (fixed *FixedTerminalLines) Replace(lines []string) error {
 	return nil
 }
 
-func (fixed *FixedTerminalLines) clearStr() string {
+func (fixed *fixedTerminalLines) clearStr() string {
 	var s strings.Builder
 	for i := 0; i < fixed.curLineCount; i++ {
 		s.WriteString("\x1B[1A\x1B[K")
