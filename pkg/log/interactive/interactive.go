@@ -5,12 +5,28 @@ package interactive
 
 import (
 	"fmt"
+	"github.com/benbjohnson/clock"
 	"github.com/fatih/color"
 	"github.com/hchauvin/warp/pkg/log"
 	"sort"
 	"sync"
 	"time"
 )
+
+// Report reports a stream of events in an interactive way, using
+// an array of fixed terminal lines.
+func Report(l *log.Logger, eventc <-chan interface{}, done <-chan struct{}) error {
+	ticker := time.NewTicker(refreshDuration)
+	defer ticker.Stop()
+	return report(l, eventc, done, clock.New(), ticker.C, &terminalReporter{})
+}
+
+// refreshDuration is the duration between two refreshes of the interactive output.
+const refreshDuration = 50 * time.Millisecond
+
+// allocationPersistenceDurationSeconds is the number of seconds to persist an
+// allocation in the interactive output after it completed.
+const allocationPersistenceDuration = 500 * time.Millisecond
 
 type allocationProgress struct {
 	name      string
@@ -20,10 +36,24 @@ type allocationProgress struct {
 	completed *time.Time
 }
 
-// Report reports a stream of events in an interactive way, using
-// an array of fixed terminal lines.
-func Report(l *log.Logger, eventc <-chan interface{}, done <-chan struct{}) error {
-	start := time.Now()
+type summary struct {
+	totalDuration time.Duration
+}
+
+type reporter interface {
+	replace(lines []string) error
+	summarize(s summary) error
+}
+
+func report(
+	l *log.Logger,
+	eventc <-chan interface{},
+	done <-chan struct{},
+	clk clock.Clock,
+	tickerc <-chan time.Time,
+	r reporter,
+) error {
+	start := clk.Now()
 
 	l.SetInteractive(true)
 	defer l.SetInteractive(false)
@@ -41,7 +71,7 @@ func Report(l *log.Logger, eventc <-chan interface{}, done <-chan struct{}) erro
 				case SetStateEvent:
 					progressMut.Lock()
 					p, _ := progress[et.Name]
-					now := time.Now()
+					now := clk.Now()
 					switch et.State {
 					case Started:
 						p.started = &now
@@ -57,21 +87,18 @@ func Report(l *log.Logger, eventc <-chan interface{}, done <-chan struct{}) erro
 		}
 	}()
 
-	var fixed FixedTerminalLines
-	started := time.Now()
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
+	started := clk.Now()
 	for {
 		select {
 		case <-done:
-			if err := fixed.Replace(nil); err != nil {
+			if err := r.replace(nil); err != nil {
 				return err
 			}
 			goto summary
-		case <-ticker.C:
+		case <-tickerc:
 		}
 
-		now := time.Now()
+		now := clk.Now()
 
 		progressMut.Lock()
 		sortedAllocationNames := make([]string, 0, len(progress))
@@ -94,7 +121,7 @@ func Report(l *log.Logger, eventc <-chan interface{}, done <-chan struct{}) erro
 			var line string
 			bold := color.New(color.Bold).SprintFunc()
 			if p.completed != nil {
-				if time.Since(*p.completed).Seconds() < 0.5 {
+				if clk.Since(*p.completed) < allocationPersistenceDuration {
 					duration := p.completed.Sub(*p.started).Seconds()
 					line = fmt.Sprintf(bold("=> [%4.1fs]")+" %s "+bold("%s"), duration, target, p.state)
 				}
@@ -115,13 +142,13 @@ func Report(l *log.Logger, eventc <-chan interface{}, done <-chan struct{}) erro
 			now.Sub(started).Seconds())
 		progressMut.Unlock()
 		lines = append([]string{summary}, lines...)
-		if err := fixed.Replace(lines); err != nil {
+		if err := r.replace(lines); err != nil {
 			return err
 		}
 	}
 
 summary:
-	fmt.Printf("----------------------------\n")
-	fmt.Printf("Total duration: %s\n", time.Now().Sub(start).Round(time.Millisecond))
-	return nil
+	return r.summarize(summary{
+		totalDuration: clk.Now().Sub(start).Round(time.Millisecond),
+	})
 }

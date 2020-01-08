@@ -6,10 +6,8 @@
 package config
 
 import (
-	"fmt"
 	"github.com/hchauvin/warp/pkg/log"
 	"path/filepath"
-	"strings"
 )
 
 // Config is the project-wide configuration for warp.
@@ -64,20 +62,7 @@ func (cfg *Config) Logger() *log.Logger {
 // ToolPath resolves the full path of a tool.  It errors if
 // the tool could not be found.
 func (cfg *Config) ToolPath(tool Tool) (fullPath string, err error) {
-	path := cfg.Tools[tool].Path
-	if path == "" {
-		panic(fmt.Sprintf("unexpected empty path for tool %s", tool))
-	}
-	if filepath.IsAbs(path) {
-		return path, nil
-	}
-	if !strings.Contains(path, "/") {
-		return path, nil
-	}
-	if strings.HasPrefix(path, "./") {
-		path = path[2:]
-	}
-	return filepath.Join(cfg.WorkspaceDir, path), nil
+	return toolPath(tool, cfg.WorkspaceDir, cfg.Tools[tool].Path)
 }
 
 // Tool is the name of a tool.
