@@ -14,26 +14,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"regexp"
 	"strings"
-	"sync"
 	"text/template"
 )
 
 func K8sTemplateFuncs(cfg *config.Config, name names.Name, k8sClient *k8s.K8s) *k8sTemplateFuncs {
 	return &k8sTemplateFuncs{
+		newTemplateFuncsCache(),
 		cfg,
 		name,
 		k8sClient,
-		sync.RWMutex{},
-		make(map[string]cacheEntry),
 	}
 }
 
 type k8sTemplateFuncs struct {
+	templateFuncsCache
 	cfg       *config.Config
 	name      names.Name
 	k8sClient *k8s.K8s
-	cacheMut  sync.RWMutex
-	cache     map[string]cacheEntry
 }
 
 func (funcs *k8sTemplateFuncs) TxtFuncMap(ctx context.Context) template.FuncMap {
@@ -108,20 +105,9 @@ func (funcs *k8sTemplateFuncs) k8sServiceAddress(
 	service string,
 	exposedTCPPort int,
 ) (string, error) {
-	var selector string
-	if strings.Contains(service, "=") {
-		if strings.HasPrefix(service, "::") {
-			selector = service[2:]
-		} else {
-			selector = k8s.Labels{
-				k8s.StackLabel: funcs.name.DNSName(),
-			}.String() + "," + service
-		}
-	} else {
-		selector = k8s.Labels{
-			k8s.StackLabel:   funcs.name.DNSName(),
-			k8s.ServiceLabel: service,
-		}.String()
+	selector, err := serviceSelector(funcs.name, service)
+	if err != nil {
+		return "", err
 	}
 	port, err := funcs.k8sClient.Ports.Port(
 		k8s.ServiceSpec{
@@ -140,20 +126,9 @@ func (funcs *k8sTemplateFuncs) k8sServiceName(
 	namespace string,
 	service string,
 ) (string, error) {
-	var selector string
-	if strings.Contains(service, "=") {
-		if strings.HasPrefix(service, "::") {
-			selector = service[2:]
-		} else {
-			selector = k8s.Labels{
-				k8s.StackLabel: funcs.name.DNSName(),
-			}.String() + "," + service
-		}
-	} else {
-		selector = k8s.Labels{
-			k8s.StackLabel:   funcs.name.DNSName(),
-			k8s.ServiceLabel: service,
-		}.String()
+	selector, err := serviceSelector(funcs.name, service)
+	if err != nil {
+		return "", err
 	}
 	name, err := funcs.k8sClient.ServiceName(ctx,
 		k8s.ServiceSpec{
@@ -182,33 +157,57 @@ func (funcs *k8sTemplateFuncs) k8sConfigMapKey(
 		if err != nil {
 			return err
 		}
-		re := regexp.MustCompile("^" + funcs.name.DNSName() + "-" + name + "(-[a-z0-9]+)?$")
-		var secretNames []string
-		for _, cfgmap := range list.Items {
-			if re.MatchString(cfgmap.Name) {
-				secretNames = append(secretNames, cfgmap.Name)
-				configMap = cfgmap
-			}
+		cfgmap, err := matchConfigMap(list, funcs.name, name)
+		if err != nil {
+			return err
 		}
-		if len(secretNames) == 0 {
-			return fmt.Errorf("no matching config map found")
-		}
-		if len(secretNames) > 1 {
-			return retry.Unrecoverable(fmt.Errorf("multiple matching config maps found: %s", strings.Join(secretNames, " ")))
-		}
+		configMap = *cfgmap
 		return nil
 	})
 	if err != nil {
 		return "", err
 	}
 
-	val, ok := configMap.Data[key]
+	return configMapEntryValue(configMap.Name, configMap.Data, key)
+}
+
+func matchConfigMap(
+	list *corev1.ConfigMapList,
+	stackName names.Name,
+	configMapName string,
+) (*corev1.ConfigMap, error) {
+	var configMap corev1.ConfigMap
+	re := regexp.MustCompile("^" + stackName.DNSName() + "-" + configMapName + "(-[a-z0-9]+)?$")
+	var configMapNames []string
+	for _, cfgmap := range list.Items {
+		if re.MatchString(cfgmap.Name) {
+			configMapNames = append(configMapNames, cfgmap.Name)
+			configMap = cfgmap
+		}
+	}
+	if len(configMapNames) == 0 {
+		return nil, fmt.Errorf("no matching config map found")
+	}
+	if len(configMapNames) > 1 {
+		return nil, retry.Unrecoverable(fmt.Errorf(
+			"multiple matching config maps found: %s",
+			strings.Join(configMapNames, " ")))
+	}
+	return &configMap, nil
+}
+
+func configMapEntryValue(resourceName string, data map[string]string, key string) (string, error) {
+	val, ok := data[key]
 	if !ok {
-		keys := make([]string, 0, len(configMap.Data))
-		for key := range configMap.Data {
+		keys := make([]string, 0, len(data))
+		for key := range data {
 			keys = append(keys, key)
 		}
-		return "", fmt.Errorf("key '%s' was not found in config map %s; keys: [%s]", key, configMap.Name, strings.Join(keys, " "))
+		return "", fmt.Errorf(
+			"key '%s' was not found in config map %s; keys: [%s]",
+			key,
+			resourceName,
+			strings.Join(keys, " "))
 	}
 
 	return val, nil
@@ -230,49 +229,58 @@ func (funcs *k8sTemplateFuncs) k8sSecretKey(
 		if err != nil {
 			return err
 		}
-		re := regexp.MustCompile("^" + funcs.name.DNSName() + "-" + name + "(-[a-z0-9]+)?$")
-		var secretNames []string
-		for _, sec := range list.Items {
-			if re.MatchString(sec.Name) {
-				secretNames = append(secretNames, sec.Name)
-				secret = sec
-			}
+		s, err := matchSecret(list, funcs.name, name)
+		if err != nil {
+			return err
 		}
-		if len(secretNames) == 0 {
-			return fmt.Errorf("no matching secret found")
-		}
-		if len(secretNames) > 1 {
-			return retry.Unrecoverable(fmt.Errorf("multiple matching secrets found: %s", strings.Join(secretNames, " ")))
-		}
+		secret = *s
 		return nil
 	})
 	if err != nil {
 		return "", err
 	}
 
-	val, ok := secret.Data[key]
+	return secretEntryValue(secret.Name, secret.Data, key)
+}
+
+func matchSecret(
+	list *corev1.SecretList,
+	stackName names.Name,
+	secretName string,
+) (*corev1.Secret, error) {
+	var secret corev1.Secret
+	re := regexp.MustCompile("^" + stackName.DNSName() + "-" + secretName + "(-[a-z0-9]+)?$")
+	var secretNames []string
+	for _, sec := range list.Items {
+		if re.MatchString(sec.Name) {
+			secretNames = append(secretNames, sec.Name)
+			secret = sec
+		}
+	}
+	if len(secretNames) == 0 {
+		return nil, fmt.Errorf("no matching secret found")
+	}
+	if len(secretNames) > 1 {
+		return nil, retry.Unrecoverable(fmt.Errorf(
+			"multiple matching secrets found: %s",
+			strings.Join(secretNames, " ")))
+	}
+	return &secret, nil
+}
+
+func secretEntryValue(resourceName string, data map[string][]byte, key string) (string, error) {
+	val, ok := data[key]
 	if !ok {
-		keys := make([]string, 0, len(secret.Data))
-		for key := range secret.Data {
+		keys := make([]string, 0, len(data))
+		for key := range data {
 			keys = append(keys, key)
 		}
-		return "", fmt.Errorf("key '%s' was not found in secret %s; keys: [%s]", key, secret.Name, strings.Join(keys, " "))
+		return "", fmt.Errorf(
+			"key '%s' was not found in secret %s; keys: [%s]",
+			key,
+			resourceName,
+			strings.Join(keys, " "))
 	}
 
 	return string(val), nil
-}
-
-func (funcs *k8sTemplateFuncs) memoize(f func() (string, error), fname string, args ...interface{}) (string, error) {
-	hash := fmt.Sprintf("%s %v", fname, args)
-	funcs.cacheMut.RLock()
-	cached, ok := funcs.cache[hash]
-	funcs.cacheMut.RUnlock()
-	if ok {
-		return cached.string, cached.error
-	}
-	ans, err := f()
-	funcs.cacheMut.Lock()
-	funcs.cache[hash] = cacheEntry{ans, err}
-	funcs.cacheMut.Unlock()
-	return ans, err
 }

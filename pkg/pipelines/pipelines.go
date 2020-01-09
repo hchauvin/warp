@@ -310,6 +310,13 @@ const (
 	OnePodPerService = WaitForResourceKind("onePodPerService")
 )
 
+// WaitForResourceKinds contains all the valid resource kinds to wait for.
+var WaitForResourceKinds = []WaitForResourceKind{
+	Endpoints,
+	Pods,
+	OnePodPerService,
+}
+
 // HTTPGet is a hook that waits for a URL to returns a 2xx status.
 type HTTPGet struct {
 	// URL to send the GET request to.  The URL is subject to
