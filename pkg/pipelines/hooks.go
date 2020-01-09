@@ -85,6 +85,9 @@ func validateCommandHook(hook *CommandHook) error {
 	actionCount := 0
 	if hook.WaitFor != nil {
 		actionCount++
+		if err := hook.WaitFor.validate(); err != nil {
+			return fmt.Errorf("invalid waitFor hook: %v", err)
+		}
 	}
 	if hook.Run != nil {
 		actionCount++
@@ -95,5 +98,23 @@ func validateCommandHook(hook *CommandHook) error {
 	if actionCount != 1 {
 		return fmt.Errorf("there must be one and only one action per command hook")
 	}
+	return nil
+}
+
+func (h *WaitForHook) validate() error {
+	if len(h.Resources) == 0 {
+		return fmt.Errorf("expected at least one resource kind to wait for")
+	}
+
+resources:
+	for _, r := range h.Resources {
+		for _, r2 := range WaitForResourceKinds {
+			if r == r2 {
+				continue resources
+			}
+		}
+		return fmt.Errorf("unknown resource kind '%s'", r)
+	}
+
 	return nil
 }

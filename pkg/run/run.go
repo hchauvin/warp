@@ -182,7 +182,8 @@ func execHook(
 					return err
 				}
 			default:
-				return fmt.Errorf("invalid waitFor resource specifier: '%s'", resource)
+				// invalid specifiers were caught when the pipeline configuration was parsed.
+				panic(fmt.Sprintf("invalid waitFor resource specifier: '%s'", resource))
 			}
 		}
 	} else if hook.Run != nil {

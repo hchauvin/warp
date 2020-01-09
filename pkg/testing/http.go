@@ -19,18 +19,22 @@ func ExpectBody(endpoint string, expectedBody string) error {
 	}
 
 	return retry.Do(func() error {
-		resp, err := http.Get(endpoint)
-		if err != nil {
-			return err
-		}
-		defer resp.Body.Close()
-		b, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		if string(b) != expectedBody {
-			return fmt.Errorf("unexpected body: expected '%s', got '%s'", expectedBody, b)
-		}
-		return nil
+		return expectBody(endpoint, expectedBody)
 	}, retry.Attempts(5), retry.Delay(3*time.Second))
+}
+
+func expectBody(endpoint, expectedBody string) error {
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if string(b) != expectedBody {
+		return fmt.Errorf("unexpected body: expected '%s', got '%s'", expectedBody, b)
+	}
+	return nil
 }

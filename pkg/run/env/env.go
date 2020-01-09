@@ -51,8 +51,3 @@ func (trans *Transformer) Get(
 	}
 	return w.String(), nil
 }
-
-type cacheEntry struct {
-	string
-	error
-}

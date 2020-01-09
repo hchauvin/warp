@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var waitFor = &WaitForHook{}
+var waitFor = &WaitForHook{Resources: []WaitForResourceKind{Endpoints}}
 
 func TestHooksAreDeduped(t *testing.T) {
 	hooks := []CommandHook{
@@ -72,10 +72,26 @@ func TestHooksDepNotExists(t *testing.T) {
 
 func TestHooksMultipleActions(t *testing.T) {
 	hooks := []CommandHook{
-		{Name: "foo", WaitFor: &WaitForHook{}, HTTPGet: &HTTPGet{}},
+		{Name: "foo", WaitFor: waitFor, HTTPGet: &HTTPGet{}},
 	}
 
 	_, err := dedupeAndValidateCommandHooks(hooks)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "there must be one and only one action per command hook")
+}
+
+func TestValidateWaitForHook(t *testing.T) {
+	h := &WaitForHook{Resources: []WaitForResourceKind{Endpoints}}
+	err := h.validate()
+	assert.NoError(t, err)
+
+	h = &WaitForHook{Resources: nil}
+	err = h.validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "expected at least one resource kind to wait for")
+
+	h = &WaitForHook{Resources: []WaitForResourceKind{Endpoints, "foo"}}
+	err = h.validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown resource kind 'foo'")
 }

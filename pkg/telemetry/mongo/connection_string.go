@@ -16,7 +16,10 @@ type options struct {
 }
 
 func parseConnectionString(backendURL string) (*options, error) {
-	components := strings.Split(backendURL, ";")
+	var components []string
+	if backendURL != "" {
+		components = strings.Split(backendURL, ";")
+	}
 
 	opts := &options{}
 	for _, s := range components {
@@ -41,14 +44,21 @@ func parseConnectionString(backendURL string) (*options, error) {
 		}
 	}
 
+	var missingOptions []string
 	if opts.uri == "" {
-		return nil, errors.New("uri option is mandatory")
+		missingOptions = append(missingOptions, "uri")
 	}
 	if opts.database == "" {
-		return nil, errors.New("database option is mandatory")
+		missingOptions = append(missingOptions, "database")
 	}
 	if opts.collection == "" {
-		return nil, errors.New("collection option is mandatory")
+		missingOptions = append(missingOptions, "collection")
+	}
+
+	if len(missingOptions) > 0 {
+		return nil, fmt.Errorf(
+			"the following options are mandatory: %s",
+			strings.Join(missingOptions, ", "))
 	}
 
 	return opts, nil
