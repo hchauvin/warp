@@ -77,10 +77,10 @@ func (dk *docker) build(
 		return nil
 	})
 
-	if err := cmd.Wait(); err != nil {
+	if err := scannersg.Wait(); err != nil {
 		return "", err
 	}
-	if err := scannersg.Wait(); err != nil {
+	if err := cmd.Wait(); err != nil {
 		return "", err
 	}
 	if imageID == "" {
