@@ -6,6 +6,7 @@ package env
 import (
 	"github.com/hchauvin/warp/pkg/stacks/names"
 	"github.com/stretchr/testify/assert"
+	"strings"
 	"testing"
 )
 
@@ -14,13 +15,13 @@ func TestServiceSelector(t *testing.T) {
 
 	selector, err := serviceSelector(name, "service")
 	assert.NoError(t, err)
-	assert.Equal(t, "warp.stack=foo-0,warp.service=service", selector)
+	assert.ElementsMatch(t, []string{"warp.stack=foo-0", "warp.service=service"}, strings.Split(selector, ","))
 
 	selector, err = serviceSelector(name, "foo=bar")
 	assert.NoError(t, err)
-	assert.Equal(t, "warp.stack=foo-0,foo=bar", selector)
+	assert.Equal(t, []string{"warp.stack=foo-0", "foo=bar"}, strings.Split(selector, ","))
 
 	selector, err = serviceSelector(name, "::foo=bar,qux=wobble")
 	assert.NoError(t, err)
-	assert.Equal(t, "foo=bar,qux=wobble", selector)
+	assert.Equal(t, []string{"foo=bar", "qux=wobble"}, strings.Split(selector, ","))
 }
