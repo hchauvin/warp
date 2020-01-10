@@ -214,6 +214,30 @@ commands:
             $Content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Env:KUBECONFIG_CONTENT))
             $Content | Out-File $HOME/.kube/config
             kubectl version
+  minikube_install:
+    description: Installs the minikube executable onto the system.
+    parameters:
+      version:
+        default: v0.30.0
+        type: string
+    steps:
+      - run:
+          command: curl -Lo minikube https://github.com/kubernetes/minikube/releases/download/<<
+            parameters.version >>/minikube-linux-amd64 && chmod +x minikube && sudo
+            mv minikube /usr/local/bin/
+          name: Install Minikube Executable
+  minikube_start:
+    description: Starts the minikube service.
+    parameters:
+      version:
+        default: v1.10.0
+        type: string
+    steps:
+      - minikube_install
+      - run:
+          command: sudo -E minikube start --vm-driver=none --cpus 2 --memory 2048 --kubernetes-version=<<
+            parameters.version >> &> $HOME/minikube.log 2>&1 < /dev/null
+          name: Start Minikube Cluster
 
 jobs:
   test-linux:
@@ -232,11 +256,18 @@ jobs:
               exit 1
             fi
       # - run: ksync init
+      - run: go test -v ./...
+  test-linux-minikube:
+    machine: true
+    resource_class: large # 4 vCPUs
+    steps:
+      - checkout
+      - install_deps_linux
+      - minikube_start
       - run:
           name: MongoDB
           command: |
             docker run --name mongo -p 27017:27017 -d mongo:bionic
-      - run: go test -v ./...
       - run:
           name: Code coverage
           command: |
@@ -297,6 +328,10 @@ workflows:
   main:
     jobs:
       - test-linux:
+          filters:
+            tags:
+              only: /^v.*/
+      - test-linux-minikube:
           filters:
             tags:
               only: /^v.*/
