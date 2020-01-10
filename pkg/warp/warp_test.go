@@ -91,7 +91,7 @@ func TestGc(t *testing.T) {
 	nameList, err := nm.List()
 	namesFree := make(map[string]bool, len(nameList))
 	for _, n := range nameList {
-		namesFree[n.Family + "_" + n.Name] = n.Free
+		namesFree[n.Family+"_"+n.Name] = n.Free
 	}
 	assert.Equal(
 		t,
@@ -114,11 +114,11 @@ func TestGc(t *testing.T) {
 	// Execute garbage collection
 	gcClient := &mockGcClient{}
 	err = gc(context.Background(), &GcCfg{
-		WorkingDir: dir,
-		ConfigPath: ".warprc.toml",
-		Family: "foo",
+		WorkingDir:                     dir,
+		ConfigPath:                     ".warprc.toml",
+		Family:                         "foo",
 		PreservePersistentVolumeClaims: false,
-		DiscardPersistentVolumeClaims: false,
+		DiscardPersistentVolumeClaims:  false,
 	}, gcClient)
 	assert.NoError(t, err)
 
@@ -177,7 +177,7 @@ func TestGetPreservePersistentVolumeClaims(t *testing.T) {
 		&config.Config{},
 		&GcCfg{
 			PreservePersistentVolumeClaims: true,
-			DiscardPersistentVolumeClaims: true,
+			DiscardPersistentVolumeClaims:  true,
 		})
 	assert.Error(t, err)
 }
@@ -187,7 +187,7 @@ type mockGcClient struct {
 }
 
 type gcCall struct {
-	name names.Name
+	name    names.Name
 	options *k8s.GcOptions
 }
 

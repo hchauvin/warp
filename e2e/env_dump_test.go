@@ -31,9 +31,9 @@ func TestEnvDump(t *testing.T) {
 		PipelinePath: "env_dump",
 		Tail:         true,
 		Run:          []string{"test"},
-		Setup: "setup0",
-		PersistEnv: false,
-		DumpEnv: dumpEnvFile.Name(),
+		Setup:        "setup0",
+		PersistEnv:   false,
+		DumpEnv:      dumpEnvFile.Name(),
 	})
 	assert.NoError(t, err)
 }
