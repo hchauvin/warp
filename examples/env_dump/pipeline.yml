@@ -1,0 +1,10 @@
+stack:
+  family: warp-env
+setups:
+  - name: setup0
+    env:
+      - 'FOO=bar'
+commands:
+  - name: test
+    workingDir: env_dump
+    command: ['go', 'run', 'test.go']
