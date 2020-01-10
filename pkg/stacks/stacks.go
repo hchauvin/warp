@@ -7,7 +7,6 @@ package stacks
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	// Registers the local backend
 	_ "github.com/hchauvin/name_manager/pkg/local_backend"
@@ -38,7 +37,8 @@ func Hold(cfg *config.Config, pipeline *pipelines.Pipeline) (*names.Name, <-chan
 		}
 		return &names.Name{ShortName: pipeline.Stack.Name}, errc, release, nil
 	} else if pipeline.Stack.Family == "" {
-		return nil, nil, nil, errors.New("either stack.name or stack.family must be given")
+		// This should be dealt with when parsing the pipeline
+		panic("either stack.name or stack.family must be given")
 	} else {
 		nameManager, err := name_manager.CreateFromURL(cfg.NameManagerURL)
 		if err != nil {

@@ -146,6 +146,12 @@ type DeployCfg struct {
 
 // Deploy implements the "deploy" command.
 func Deploy(ctx context.Context, deployCfg *DeployCfg) error {
+	return doDeploy(ctx, deployCfg, deploy.Exec)
+}
+
+type execDeploy func(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error
+
+func doDeploy(ctx context.Context, deployCfg *DeployCfg, exec execDeploy) error {
 	cfg, err := readConfig(deployCfg.WorkingDir, deployCfg.ConfigPath)
 	if err != nil {
 		return err
@@ -170,7 +176,7 @@ func Deploy(ctx context.Context, deployCfg *DeployCfg) error {
 	}
 	defer k8sClient.Ports.CancelForwarding()
 
-	if err := deploy.Exec(ctx, cfg, pipeline, names.Name{ShortName: pipeline.Stack.Name}, k8sClient); err != nil {
+	if err := exec(ctx, cfg, pipeline, names.Name{ShortName: pipeline.Stack.Name}, k8sClient); err != nil {
 		return fmt.Errorf("deploy step failed: %v", err)
 	}
 
@@ -266,16 +272,28 @@ type GcCfg struct {
 
 // Gc implements the "gc" command.
 func Gc(ctx context.Context, gcCfg *GcCfg) error {
+	return gc(ctx, gcCfg, nil)
+}
+
+type gcClient interface {
+	Gc(ctx context.Context, cfg *config.Config, name names.Name, options *k8s.GcOptions) error
+}
+
+func gc(ctx context.Context, gcCfg *GcCfg, gcClient gcClient) error {
 	cfg, err := readConfig(gcCfg.WorkingDir, gcCfg.ConfigPath)
 	if err != nil {
 		return err
 	}
 
-	k8sClient, err := k8s.New(cfg)
-	if err != nil {
-		return err
+	if gcClient == nil {
+		k8sClient, err := k8s.New(cfg)
+		if err != nil {
+			return err
+		}
+		defer k8sClient.Ports.CancelForwarding()
+
+		gcClient = k8sClient
 	}
-	defer k8sClient.Ports.CancelForwarding()
 
 	nameManager, err := name_manager.CreateFromURL(cfg.NameManagerURL)
 	if err != nil {
@@ -287,21 +305,15 @@ func Gc(ctx context.Context, gcCfg *GcCfg) error {
 		return err
 	}
 
-	if gcCfg.PreservePersistentVolumeClaims && gcCfg.DiscardPersistentVolumeClaims {
-		return fmt.Errorf("--preserve_pvc and --discard_pvc cannot be both present")
-	}
-	preservePersistentVolumeClaims := cfg.Kubernetes.PreservePVCByDefault
-	if gcCfg.PreservePersistentVolumeClaims {
-		preservePersistentVolumeClaims = true
-	}
-	if gcCfg.DiscardPersistentVolumeClaims {
-		preservePersistentVolumeClaims = false
+	preservePersistentVolumeClaims, err := getPreservePersistentVolumeClaims(cfg, gcCfg)
+	if err != nil {
+		return err
 	}
 
 	sem := semaphore.NewWeighted(10) // 10 is a sensible default
 	g, ctx := errgroup.WithContext(ctx)
 	for _, name := range nameList {
-		if gcCfg.Family != "" && name.Family != "" {
+		if gcCfg.Family != "" && name.Family != gcCfg.Family {
 			continue
 		}
 		if err := sem.Acquire(ctx, 1); err != nil {
@@ -318,7 +330,7 @@ func Gc(ctx context.Context, gcCfg *GcCfg) error {
 			defer nameManager.Release(name.Family, name.Name)
 
 			cfg.Logger().Info(logDomain+":gc", "PENDING: family=%s shortName=%s", name.Family, name.Name)
-			err := k8sClient.Gc(
+			err := gcClient.Gc(
 				ctx,
 				cfg,
 				names.Name{Family: name.Family, ShortName: name.Name},
@@ -334,6 +346,23 @@ func Gc(ctx context.Context, gcCfg *GcCfg) error {
 	}
 
 	return g.Wait()
+}
+
+func getPreservePersistentVolumeClaims(cfg *config.Config, gcCfg *GcCfg) (bool, error) {
+	if gcCfg.PreservePersistentVolumeClaims && gcCfg.DiscardPersistentVolumeClaims {
+		return false, fmt.Errorf("--preserve_pvc and --discard_pvc cannot be both present")
+	}
+	preservePersistentVolumeClaims := false
+	if cfg.Kubernetes != nil {
+		preservePersistentVolumeClaims = cfg.Kubernetes.PreservePVCByDefault
+	}
+	if gcCfg.PreservePersistentVolumeClaims {
+		preservePersistentVolumeClaims = true
+	}
+	if gcCfg.DiscardPersistentVolumeClaims {
+		preservePersistentVolumeClaims = false
+	}
+	return preservePersistentVolumeClaims, nil
 }
 
 func readConfig(workingDir, configPath string) (*config.Config, error) {
