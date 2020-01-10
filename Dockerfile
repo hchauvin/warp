@@ -1,5 +1,5 @@
 # Step 1: build executable binary
-FROM golang:1.13.5-alpine3.10@sha256:23a8fd604f8d1e60f8c372e088076aaeef5d2eb182caf6e0717dfc500417e1cb as builder
+FROM golang:1.13.6-alpine3.10@sha256:13a9dc7915b6899edcc21a7222675146d568fd1ec99d65d6b7fd1d42e355065f as builder
 
 RUN adduser -D -g '' appuser
 
