@@ -36,7 +36,12 @@ func (k8s *K8s) Tail(ctx context.Context, cfg *config.Config, name names.Name) e
 	}
 	out, err := cmd.Output()
 	if err != nil {
-		return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return err
+		}
 	}
 
 	var info map[string]interface{}
