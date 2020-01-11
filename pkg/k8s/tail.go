@@ -27,7 +27,12 @@ func (k8s *K8s) Tail(ctx context.Context, cfg *config.Config, name names.Name) e
 		"-o=json",
 	)
 	if err != nil {
-		return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return err
+		}
 	}
 	out, err := cmd.Output()
 	if err != nil {
@@ -60,7 +65,12 @@ func (k8s *K8s) Tail(ctx context.Context, cfg *config.Config, name names.Name) e
 					"service/"+spec.name,
 				)
 				if err != nil {
-					return err
+					select {
+					case <-gctx.Done():
+						return gctx.Err()
+					default:
+						return err
+					}
 				}
 				subLogDomain := "tail." + spec.namespace + "." + spec.name
 				cfg.Logger().Pipe(subLogDomain, cmd)
