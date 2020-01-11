@@ -601,7 +601,6 @@ func (runner *runner) transGet(ctx context.Context, name names.Name, tplStr stri
 	runner.transMut.Lock()
 	trans, ok := runner.trans[name.DNSName()]
 	if !ok {
-		runner.transMut.Lock()
 		trans = env.NewTransformer(env.K8sTemplateFuncs(runner.cfg, name, runner.k8sClient))
 	}
 	runner.transMut.Unlock()
