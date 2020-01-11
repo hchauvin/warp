@@ -77,7 +77,12 @@ func Exec(
 			cmd := proc.GracefulCommandContext(gctx, browserSyncPath, args...)
 			cfg.Logger().Pipe(logDomain, cmd)
 			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("browser-sync: %v", err)
+				select {
+				case <-gctx.Done():
+					return gctx.Err()
+				default:
+					return fmt.Errorf("browser-sync: %v", err)
+				}
 			}
 			return nil
 		})
