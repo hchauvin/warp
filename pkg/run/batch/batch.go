@@ -21,7 +21,6 @@ import (
 	"github.com/hchauvin/warp/pkg/run/env"
 	"github.com/hchauvin/warp/pkg/stacks"
 	"github.com/hchauvin/warp/pkg/stacks/names"
-	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 	"io"
@@ -132,6 +131,7 @@ func RunBatch(
 		k8sClient: k8sClient,
 		options:   options,
 		pipelines: make(map[string]*pipeline),
+		trans:     make(map[string]*env.Transformer),
 		sharedEnv: []string{
 			"BATCH_ID=" + batchID,
 		},
@@ -154,8 +154,7 @@ func RunBatch(
 				runner.pipelines[batchPipeline.Name] = &pipeline{
 					batchPipeline: batchPipeline,
 					pipeline:      p,
-					releasec:      make(chan struct{}),
-					stacks:        make(map[string]*stackInfo),
+					stackHolder:   newStackHolder(),
 				}
 				return nil
 			})
@@ -250,6 +249,8 @@ type runner struct {
 	options    *RunBatchOptions
 	pipelines  map[string]*pipeline
 	stacksMut  sync.Mutex
+	trans      map[string]*env.Transformer
+	transMut   sync.Mutex
 	errored    []string
 	erroredMut sync.Mutex
 	sharedEnv  []string
@@ -257,33 +258,16 @@ type runner struct {
 }
 
 type pipeline struct {
-	batchPipeline  batches.Pipeline
-	pipeline       *pipelines.Pipeline
-	stackCount     atomic.Int64
-	freeStackCount atomic.Int64
-	releasec       chan struct{}
-	stacks         map[string]*stackInfo
-}
-
-type stackInfo struct {
-	pipelineName  string
-	name          names.Name
-	holdErrc      <-chan error
-	release       name_manager.ReleaseFunc
-	trans         *env.Transformer
-	exclusiveLock bool
-	usageCount    int
-	deployed      atomic.Bool
-	before        atomic.Bool
-	deployedc     chan struct{}
-	initializedc  chan struct{}
+	batchPipeline batches.Pipeline
+	pipeline      *pipelines.Pipeline
+	stackHolder   stackHolder
 }
 
 func (runner *runner) clean() {
 	// Release the stacks
 	var g sync.WaitGroup
 	for _, pipeline := range runner.pipelines {
-		for _, stack := range pipeline.stacks {
+		for _, stack := range pipeline.stackHolder.stacks {
 			g.Add(1)
 			go func() {
 				defer g.Done()
@@ -300,93 +284,17 @@ func (runner *runner) hold(ctx context.Context, pipelineName string, exclusive b
 		return nil, err
 	}
 
-	var wait bool
-	if exclusive {
-		wait = pipeline.stackCount.Load() >= int64(runner.options.MaxStacksPerPipeline)
-	} else {
-		wait = pipeline.freeStackCount.Load() == 0 &&
-			pipeline.stackCount.Load() >= int64(runner.options.MaxStacksPerPipeline)
-	}
-	if wait {
-		runner.cfg.Logger().Info(
-			logDomain,
-			"max stacks per pipeline %d reached; waiting for a stack release",
-			runner.options.MaxStacksPerPipeline)
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-pipeline.releasec:
-		}
-	}
-
-	runner.stacksMut.Lock()
-	defer runner.stacksMut.Unlock()
-
-	var stack *stackInfo
-	if exclusive {
-		for _, st := range pipeline.stacks {
-			if st.usageCount == 0 {
-				stack = st
-				break
-			}
-		}
-		if stack != nil {
-			stack.usageCount = 1
-			stack.exclusiveLock = true
-			pipeline.freeStackCount.Dec()
-			return stack, nil
-		}
-	} else {
-		for _, st := range pipeline.stacks {
-			if !st.exclusiveLock {
-				stack = st
-				break
-			}
-		}
-		if stack != nil {
-			stack.usageCount++
-			return stack, nil
-		}
-	}
-
-	name, holdErrc, release, err := stacks.Hold(runner.cfg, pipeline.pipeline)
-	if err != nil {
-		return nil, err
-	}
-
-	stack = &stackInfo{
-		pipelineName:  pipelineName,
-		name:          *name,
-		release:       release,
-		holdErrc:      holdErrc,
-		trans:         env.NewTransformer(env.K8sTemplateFuncs(runner.cfg, *name, runner.k8sClient)),
-		usageCount:    1,
-		exclusiveLock: exclusive,
-		deployedc:     make(chan struct{}),
-		initializedc:  make(chan struct{}),
-	}
-	pipeline.stacks[name.String()] = stack
-	pipeline.stackCount.Inc()
-	if !exclusive {
-		pipeline.freeStackCount.Inc()
-	}
-	return stack, nil
+	return pipeline.stackHolder.hold(ctx, runner.cfg.Logger(), pipelineName, holdConfig{
+		maxStacksPerPipeline: runner.options.MaxStacksPerPipeline,
+		exclusive:            exclusive,
+		hold: func() (*names.Name, <-chan error, name_manager.ReleaseFunc, error) {
+			return stacks.Hold(runner.cfg, pipeline.pipeline)
+		},
+	})
 }
 
 func (runner *runner) release(pipelineName, stackName string) {
-	runner.stacksMut.Lock()
-	defer runner.stacksMut.Unlock()
-
-	stack := runner.pipelines[pipelineName].stacks[stackName]
-	stack.usageCount--
-	if stack.exclusiveLock {
-		stack.before.Store(false)
-		runner.pipelines[stack.pipelineName].freeStackCount.Inc()
-	}
-	stack.exclusiveLock = false
-	go func() {
-		<-runner.pipelines[stack.pipelineName].releasec
-	}()
+	runner.pipelines[pipelineName].stackHolder.release(stackName)
 }
 
 func (runner *runner) execCommand(
@@ -559,7 +467,7 @@ func (runner *runner) execCommand(
 				for _, e := range setup.Env {
 					e := e
 					genv.Go(func() error {
-						s, err := stack.trans.Get(genvctx, e)
+						s, err := runner.transGet(genvctx, stack.name, e)
 						if err != nil {
 							return err
 						}
@@ -687,6 +595,18 @@ func (runner *runner) execCommand(
 		State: interactive.Completed,
 	})
 	return nil
+}
+
+func (runner *runner) transGet(ctx context.Context, name names.Name, tplStr string) (string, error) {
+	runner.transMut.Lock()
+	trans, ok := runner.trans[name.DNSName()]
+	if !ok {
+		runner.transMut.Lock()
+		trans = env.NewTransformer(env.K8sTemplateFuncs(runner.cfg, name, runner.k8sClient))
+	}
+	runner.transMut.Unlock()
+
+	return trans.Get(ctx, tplStr)
 }
 
 func (runner *runner) pipeline(name string) (*pipeline, error) {

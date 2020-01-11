@@ -5,11 +5,13 @@ package warp
 
 import (
 	"context"
+	"errors"
 	_ "github.com/hchauvin/name_manager/pkg/local_backend"
 	"github.com/hchauvin/name_manager/pkg/name_manager"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
+	"github.com/hchauvin/warp/pkg/stacks"
 	"github.com/hchauvin/warp/pkg/stacks/names"
 	"github.com/pelletier/go-toml"
 	"github.com/stretchr/testify/assert"
@@ -19,6 +21,84 @@ import (
 	"path/filepath"
 	"testing"
 )
+
+func TestHold(t *testing.T) {
+	err := testHold(t, func(detachedErrc chan<- error) error {
+		defer close(detachedErrc)
+		return nil
+	})
+	assert.NoError(t, err)
+
+	err = testHold(t, func(detachedErrc chan<- error) error {
+		defer close(detachedErrc)
+		return errors.New("__error__")
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "__error__")
+
+	err = testHold(t, func(detachedErrc chan<- error) error {
+		defer close(detachedErrc)
+		detachedErrc <- errors.New("__error__")
+		return nil
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "__error__")
+
+	err = testHold(t, func(detachedErrc chan<- error) error {
+		defer close(detachedErrc)
+		detachedErrc <- errors.New("__error1__")
+		return errors.New("__error2__")
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "__error1__")
+	assert.Contains(t, err.Error(), "__error2__")
+}
+
+func testHold(t *testing.T, cb func(detachedErrc chan<- error) error) error {
+	dir, err := ioutil.TempDir("", "warp_hold")
+	assert.NoError(t, err)
+	defer os.RemoveAll(dir)
+
+	// Write workspace
+	cfgTOML, err := toml.Marshal(config.Config{
+		// NameManagerURL: "local://" + filepath.Join(dir, "nm.db"),
+	})
+	assert.NoError(t, err)
+
+	err = ioutil.WriteFile(filepath.Join(dir, ".warprc.toml"), cfgTOML, 0666)
+	assert.NoError(t, err)
+
+	pipelineYAML, err := yaml.Marshal(pipelines.Pipeline{
+		Stack: pipelines.Stack{
+			Name: "foo",
+		},
+	})
+	assert.NoError(t, err)
+
+	err = ioutil.WriteFile(filepath.Join(dir, "pipeline.yaml"), pipelineYAML, 0666)
+	assert.NoError(t, err)
+
+	execCalled := false
+	exec := func(
+		ctx context.Context,
+		cfg *config.Config,
+		pipeline *pipelines.Pipeline,
+		execCfg *stacks.ExecConfig,
+		detachedErrc chan<- error,
+	) (err error) {
+		execCalled = true
+		assert.Equal(t, "foo", pipeline.Stack.Name)
+		return cb(detachedErrc)
+	}
+
+	err = doHold(&HoldConfig{
+		WorkingDir:   dir,
+		ConfigPath:   ".warprc.toml",
+		PipelinePath: "pipeline.yaml",
+	}, exec)
+	assert.True(t, execCalled)
+	return err
+}
 
 func TestDeploy(t *testing.T) {
 	dir, err := ioutil.TempDir("", "warp_gc")

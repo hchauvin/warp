@@ -72,6 +72,18 @@ type HoldConfig struct {
 // Hold deploy a stacks, then hold it until either 1) the run specifications
 // are executed, 2) the user requests it (via, e.g., Ctl-C).
 func Hold(holdCfg *HoldConfig) error {
+	return doHold(holdCfg, stacks.Exec)
+}
+
+type execStacks func(
+	ctx context.Context,
+	cfg *config.Config,
+	pipeline *pipelines.Pipeline,
+	execCfg *stacks.ExecConfig,
+	detachedErrc chan<- error,
+) (err error)
+
+func doHold(holdCfg *HoldConfig, exec execStacks) error {
 	cfg, err := readConfig(holdCfg.WorkingDir, holdCfg.ConfigPath)
 	if err != nil {
 		return err
@@ -90,33 +102,25 @@ func Hold(holdCfg *HoldConfig) error {
 	if err != nil {
 		return err
 	}
-	defer releaseName()
+	nameReleased := false
+	defer func() {
+		if !nameReleased {
+			releaseName()
+		}
+	}()
 
 	var errs []string
 
 	stacksExecCtx, cancelStacksExec := context.WithCancel(context.Background())
 	detachedErrc := make(chan error, 1)
-	go func() {
-		var err error
-		select {
-		case err = <-detachedErrc:
-		case err = <-holdErrc:
-		}
-		if err != nil && err != context.Canceled {
-			cancelStacksExec()
-			errs = append(errs, err.Error())
-		}
-	}()
 	signalc := make(chan os.Signal)
 	signal.Notify(signalc, os.Interrupt)
 	select {
 	case <-signalc:
 		cfg.Logger().Info(logDomain, "cleaning up...")
 		cancelStacksExec()
-	case err := <-detachedErrc:
-		errs = append(errs, err.Error())
 	default:
-		err := stacks.Exec(stacksExecCtx, cfg, pipeline, &stacks.ExecConfig{
+		err := exec(stacksExecCtx, cfg, pipeline, &stacks.ExecConfig{
 			Name:             *name,
 			Dev:              holdCfg.Dev,
 			Tail:             holdCfg.Tail,
@@ -129,6 +133,15 @@ func Hold(holdCfg *HoldConfig) error {
 		if err != nil && err != context.Canceled {
 			errs = append(errs, err.Error())
 		}
+	}
+
+	nameReleased = true
+	releaseName()
+	for err := range holdErrc {
+		errs = append(errs, err.Error())
+	}
+	for err := range detachedErrc {
+		errs = append(errs, err.Error())
 	}
 
 	if len(errs) > 0 {
