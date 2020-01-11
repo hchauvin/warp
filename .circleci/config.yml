@@ -231,7 +231,7 @@ jobs:
               echo "ERROR: gofmt: bad format:\n$badFormat"
               exit 1
             fi
-      - run: ksync init
+      # - run: ksync init
       - run:
           name: MongoDB
           command: |
