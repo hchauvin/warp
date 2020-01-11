@@ -127,7 +127,7 @@ func Exec(
 
 		go func() {
 			defer close(detachedErrc)
-			if err := detachedg.Wait(); err != nil {
+			if err := detachedg.Wait(); err != nil && err != context.Canceled {
 				detachedErrc <- err
 			}
 		}()
