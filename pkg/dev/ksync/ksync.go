@@ -95,7 +95,15 @@ func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name
 				return err
 			}
 			cfg.Logger().Pipe(config.Ksync.LogDomain(), cmd)
-			return cmd.Run()
+			if err := cmd.Run(); err != nil {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+					return err
+				}
+			}
+			return nil
 		})
 	}
 
@@ -123,7 +131,12 @@ func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name
 		cmd := proc.GracefulCommandContext(ctx, ksyncPath, "watch")
 		cfg.Logger().Pipe(logDomain, cmd)
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("'ksync watch' failed: %v", err)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			default:
+				return fmt.Errorf("'ksync watch' failed: %v", err)
+			}
 		}
 	}
 	return nil

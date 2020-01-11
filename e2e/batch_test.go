@@ -106,6 +106,28 @@ func TestBatchDependsOn(t *testing.T) {
 	assertRun(t, "depends-on", "dependency")
 }
 
+func TestBatchFocusAndSkipped(t *testing.T) {
+	setUpBatch(t)
+	defer tearDownBatch()
+
+	err := warp.Batch(context.Background(), &warp.BatchCfg{
+		WorkingDir:           "../examples",
+		ConfigPath:           ".warprc.toml",
+		BatchPath:            "batch/batch.yml",
+		Parallelism:          1,
+		MaxStacksPerPipeline: 1,
+		Focus:                "depends-on-dependency-skipped",
+		Bail:                 true,
+		Advisory:             false,
+		Report:               "",
+		Stream:               true,
+	})
+	assert.NoError(t, err)
+
+	// "dependency" is not run (see TestBatchDependsOn)
+	assertRun(t, "depends-on")
+}
+
 func TestBatchPipeline(t *testing.T) {
 	setUpBatch(t)
 	defer tearDownBatch()
@@ -168,5 +190,24 @@ func assertRun(t *testing.T, commands ...string) {
 		file := filepath.Join(os.Getenv("OUTPUT_DIR"), cmd)
 		_, err := os.Stat(file)
 		assert.NoError(t, err, "command '%s' has not been run: file '%s' does not exist", cmd, file)
+	}
+
+	files, err := ioutil.ReadDir(os.Getenv("OUTPUT_DIR"))
+	if err != nil {
+		assert.Fail(t, "cannot read output dir")
+	} else {
+	files:
+		for _, f := range files {
+			if f.IsDir() {
+				continue
+			}
+			basename := filepath.Base(f.Name())
+			for _, cmd := range commands {
+				if cmd == basename {
+					continue files
+				}
+			}
+			assert.Fail(t, "command has been run but shouldn't have: file exists:", basename)
+		}
 	}
 }

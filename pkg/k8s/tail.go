@@ -27,11 +27,21 @@ func (k8s *K8s) Tail(ctx context.Context, cfg *config.Config, name names.Name) e
 		"-o=json",
 	)
 	if err != nil {
-		return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return err
+		}
 	}
 	out, err := cmd.Output()
 	if err != nil {
-		return err
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+			return err
+		}
 	}
 
 	var info map[string]interface{}
@@ -60,16 +70,23 @@ func (k8s *K8s) Tail(ctx context.Context, cfg *config.Config, name names.Name) e
 					"service/"+spec.name,
 				)
 				if err != nil {
-					return err
+					select {
+					case <-gctx.Done():
+						return gctx.Err()
+					default:
+						return err
+					}
 				}
 				subLogDomain := "tail." + spec.namespace + "." + spec.name
 				cfg.Logger().Pipe(subLogDomain, cmd)
 				if err := cmd.Run(); err != nil {
-					if err == ctx.Err() {
-						return err
+					select {
+					case <-gctx.Done():
+						return gctx.Err()
+					default:
+						cfg.Logger().Info(subLogDomain, "cannot tail %s|%s: %v", spec.namespace, spec.name, err)
+						continue
 					}
-					cfg.Logger().Info(subLogDomain, "cannot tail %s|%s: %v", spec.namespace, spec.name, err)
-					continue
 				}
 				return nil
 			}

@@ -126,10 +126,13 @@ func Exec(
 		}
 
 		go func() {
-			if err := detachedg.Wait(); err != nil {
+			defer close(detachedErrc)
+			if err := detachedg.Wait(); err != nil && err != context.Canceled {
 				detachedErrc <- err
 			}
 		}()
+	} else {
+		close(detachedErrc)
 	}
 
 	if setup != nil {

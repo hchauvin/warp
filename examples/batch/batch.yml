@@ -29,6 +29,12 @@ commands:
     command: ['go', 'run', 'commands.go']
     env:
       - 'FILE=dependency'
+  - name: depends-on-dependency-skipped
+    dependsOn: ['dependency']
+    workingDir: 'batch'
+    command: ['go', 'run', 'commands.go']
+    env:
+      - 'FILE=depends-on'
   - name: pipeline
     pipelines: ['pipeline0']
     workingDir: 'batch'
