@@ -25,7 +25,7 @@ require (
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.4.0
 	github.com/urfave/cli/v2 v2.1.1
-	go.mongodb.org/mongo-driver v1.2.0
+	go.mongodb.org/mongo-driver v1.2.1
 	go.uber.org/atomic v1.5.1
 	golang.org/x/crypto v0.0.0-20200109152110-61a87790db17
 	golang.org/x/oauth2 v0.0.0-20191122200657-5d9234df094c // indirect
