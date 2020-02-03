@@ -85,7 +85,7 @@ commands:
           command: |
             curl -L -f https://github.com/ksync/ksync/releases/download/0.4.1/ksync_linux_amd64 > ksync
             chmod +x ./ksync
-            sudo mv ./ksync
+            sudo mv ./ksync /usr/local/bin
       - run:
           name: Install NodeJs
           command: |
@@ -135,7 +135,7 @@ commands:
           command: |
             curl -L -f https://github.com/ksync/ksync/releases/download/0.4.1/ksync_darwin_amd64 > ksync
             chmod +x ./ksync
-            sudo mv ./ksync
+            sudo mv ./ksync /usr/local/bin
       - run:
           name: BrowserSync
           command: |
