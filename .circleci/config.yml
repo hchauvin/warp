@@ -226,7 +226,7 @@ commands:
       - run:
           name: ksync init
           command: |
-            ksync init --upgrade
+            ksync init --upgrade || echo "Could not ksync-init"
 
 jobs:
   test-linux:
@@ -284,7 +284,10 @@ jobs:
       - checkout
       - install_deps_windows
       - kubeconfig_windows
-      - ksync_init
+      - run:
+          name: ksync init
+          command: |
+            ksync init --upgrade
       - run:
           name: Test
           command: |
