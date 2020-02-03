@@ -220,6 +220,13 @@ commands:
             $Content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Env:KUBECONFIG_CONTENT))
             $Content | Out-File $HOME/.kube/config
             kubectl version
+  ksync_init:
+    description: Initialize the K8s cluster for ksync
+    steps:
+      - run:
+          name: ksync init
+          command: |
+            ksync init --upgrade
 
 jobs:
   test-linux:
@@ -237,7 +244,7 @@ jobs:
               echo "ERROR: gofmt: bad format:\n$badFormat"
               exit 1
             fi
-      - run: ksync init --upgrade
+      - ksync_init
       - run:
           name: MongoDB
           command: |
@@ -264,7 +271,7 @@ jobs:
             goRelArch=darwin-amd64
             url="https://golang.org/dl/go${GOLANG_VERSION}.${goRelArch}.tar.gz"
             curl -L $url | tar -C ~ -xzf -
-      - run: ksync init --upgrade
+      - ksync_init
       - run:
           name: Test
           command: |
@@ -277,7 +284,7 @@ jobs:
       - checkout
       - install_deps_windows
       - kubeconfig_windows
-      - run: ksync init --upgrade
+      - ksync_init
       - run:
           name: Test
           command: |
