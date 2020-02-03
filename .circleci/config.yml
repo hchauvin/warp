@@ -82,7 +82,10 @@ commands:
             sudo mv ./kubectl /usr/local/bin/kubectl
       - run:
           name: Ksync
-          command: sudo bash -c "curl https://ksync.github.io/gimme-that/gimme.sh | bash"
+          command: |
+            curl -L -f https://github.com/ksync/ksync/releases/download/0.4.1/ksync_linux_amd64 > ksync
+            chmod +x ./ksync
+            sudo mv ./ksync
       - run:
           name: Install NodeJs
           command: |
@@ -129,7 +132,10 @@ commands:
             sudo mv ./kubectl /usr/local/bin/kubectl
       - run:
           name: Ksync
-          command: sudo bash -c "curl https://ksync.github.io/gimme-that/gimme.sh | bash"
+          command: |
+            curl -L -f https://github.com/ksync/ksync/releases/download/0.4.1/ksync_darwin_amd64 > ksync
+            chmod +x ./ksync
+            sudo mv ./ksync
       - run:
           name: BrowserSync
           command: |
@@ -231,7 +237,7 @@ jobs:
               echo "ERROR: gofmt: bad format:\n$badFormat"
               exit 1
             fi
-      - run: ksync init
+      - run: ksync init --update
       - run:
           name: MongoDB
           command: |
@@ -258,7 +264,7 @@ jobs:
             goRelArch=darwin-amd64
             url="https://golang.org/dl/go${GOLANG_VERSION}.${goRelArch}.tar.gz"
             curl -L $url | tar -C ~ -xzf -
-      - run: ksync init
+      - run: ksync init --update
       - run:
           name: Test
           command: |
@@ -271,7 +277,7 @@ jobs:
       - checkout
       - install_deps_windows
       - kubeconfig_windows
-      - run: ksync init
+      - run: ksync init --update
       - run:
           name: Test
           command: |
