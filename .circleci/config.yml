@@ -82,7 +82,10 @@ commands:
             sudo mv ./kubectl /usr/local/bin/kubectl
       - run:
           name: Ksync
-          command: sudo bash -c "curl https://ksync.github.io/gimme-that/gimme.sh | bash"
+          command: |
+            curl -L -f https://github.com/ksync/ksync/releases/download/0.4.1/ksync_linux_amd64 > ksync
+            chmod +x ./ksync
+            sudo mv ./ksync /usr/local/bin
       - run:
           name: Install NodeJs
           command: |
@@ -129,7 +132,10 @@ commands:
             sudo mv ./kubectl /usr/local/bin/kubectl
       - run:
           name: Ksync
-          command: sudo bash -c "curl https://ksync.github.io/gimme-that/gimme.sh | bash"
+          command: |
+            curl -L -f https://github.com/ksync/ksync/releases/download/0.4.1/ksync_darwin_amd64 > ksync
+            chmod +x ./ksync
+            sudo mv ./ksync /usr/local/bin
       - run:
           name: BrowserSync
           command: |
@@ -214,6 +220,13 @@ commands:
             $Content = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Env:KUBECONFIG_CONTENT))
             $Content | Out-File $HOME/.kube/config
             kubectl version
+  ksync_init:
+    description: Initialize the K8s cluster for ksync
+    steps:
+      - run:
+          name: ksync init
+          command: |
+            ksync init --upgrade || echo "Could not ksync-init"
 
 jobs:
   test-linux:
@@ -231,7 +244,7 @@ jobs:
               echo "ERROR: gofmt: bad format:\n$badFormat"
               exit 1
             fi
-      - run: ksync init
+      - ksync_init
       - run:
           name: MongoDB
           command: |
@@ -258,7 +271,7 @@ jobs:
             goRelArch=darwin-amd64
             url="https://golang.org/dl/go${GOLANG_VERSION}.${goRelArch}.tar.gz"
             curl -L $url | tar -C ~ -xzf -
-      - run: ksync init
+      - ksync_init
       - run:
           name: Test
           command: |
@@ -271,7 +284,10 @@ jobs:
       - checkout
       - install_deps_windows
       - kubeconfig_windows
-      - run: ksync init
+      - run:
+          name: ksync init
+          command: |
+            ksync init --upgrade
       - run:
           name: Test
           command: |
