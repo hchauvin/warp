@@ -12,6 +12,7 @@ import (
 	_ "github.com/hchauvin/name_manager/pkg/local_backend"
 	// Registers the mongo backend
 	_ "github.com/hchauvin/name_manager/pkg/mongo_backend"
+	_ "github.com/hchauvin/name_manager/pkg/firestore_backend"
 	"github.com/hchauvin/name_manager/pkg/name_manager"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/deploy"
