@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 func homeDir() string {

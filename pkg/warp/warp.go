@@ -105,9 +105,13 @@ func doHold(holdCfg *HoldConfig, exec execStacks) error {
 	nameReleased := false
 	defer func() {
 		if !nameReleased {
-			releaseName()
+			if err := releaseName(); err != nil {
+				cfg.Logger().Warning(logDomain, "could not release name %s: %v", name.DNSName(), err)
+			}
 		}
 	}()
+
+	cfg.Logger().Info(logDomain, "acquired name %s", name.DNSName())
 
 	var errs []string
 
@@ -136,7 +140,9 @@ func doHold(holdCfg *HoldConfig, exec execStacks) error {
 	}
 
 	nameReleased = true
-	releaseName()
+	if err := releaseName(); err != nil {
+		cfg.Logger().Warning(logDomain, "could not release name %s: %v", name.DNSName(), err)
+	}
 	for err := range holdErrc {
 		errs = append(errs, err.Error())
 	}

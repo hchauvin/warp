@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"go.uber.org/atomic"
+
 	// Registers the local backend
 	_ "github.com/hchauvin/name_manager/pkg/local_backend"
 	// Registers the mongo backend
@@ -74,6 +76,13 @@ func Exec(
 	execCfg *ExecConfig,
 	detachedErrc chan<- error,
 ) (err error) {
+	detachedErrcClosed := atomic.NewBool(false)
+	defer func() {
+		if !detachedErrcClosed.Swap(true) {
+			close(detachedErrc)
+		}
+	}()
+
 	k8sClient, err := k8s.New(cfg)
 	if err != nil {
 		return err
@@ -127,13 +136,17 @@ func Exec(
 		}
 
 		go func() {
-			defer close(detachedErrc)
 			if err := detachedg.Wait(); err != nil && err != context.Canceled {
 				detachedErrc <- err
 			}
+			if !detachedErrcClosed.Swap(true) {
+				close(detachedErrc)
+			}
 		}()
 	} else {
-		close(detachedErrc)
+		if !detachedErrcClosed.Swap(true) {
+			close(detachedErrc)
+		}
 	}
 
 	if setup != nil {
