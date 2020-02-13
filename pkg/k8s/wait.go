@@ -62,8 +62,10 @@ func (k8s *K8s) WaitForEndpoints(ctx context.Context, k8sNamespace string, name 
 				addressesCount := 0
 				notReadyAddressesCount := 0
 				for _, endpoint := range endpoints.Items {
-					addressesCount += len(endpoint.Subsets[0].Addresses)
-					notReadyAddressesCount += len(endpoint.Subsets[0].NotReadyAddresses)
+					for _, subset := range endpoint.Subsets {
+						addressesCount += len(subset.Addresses)
+						notReadyAddressesCount += len(subset.NotReadyAddresses)
+					}
 				}
 
 				if notReadyAddressesCount == 0 {
