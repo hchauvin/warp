@@ -121,6 +121,11 @@ type Deploy struct {
 	// deploy to a Kubernetes cluster.  If it is omitted,
 	// the stack is not deployed to Kubernetes with kustomize.
 	Kustomize *Kustomize `yaml:"kustomize,omitempty"`
+
+	// Terraform describes the Terraform config to use to
+	// apply a Terraform config.  If it is omitted,
+	// the stack is not deployed with Terraform.
+	Terraform *Terraform `yaml:"terraform,omitempty"`
 }
 
 // Container describes the deployment steps relative to
@@ -191,6 +196,24 @@ type Kustomize struct {
 	// with a strategic merge.  The patches are subject to template
 	// expansion.
 	PatchesStrategicMerge []string `yaml:"patchesStrategicMerge,omitempty" patchStrategy:"append"`
+
+	SecretGenerator []KustomizeSecretGenerator `yaml:"secretGenerator"`
+}
+
+type KustomizeSecretGenerator struct {
+	Name string `yaml:"name"`
+	Literals []string `yaml:"literals"`
+}
+
+// Terraform describes the Terraform config to use to
+// deploy with Terraform.
+type Terraform struct {
+	// Path to the directory containing the Terraform config.
+	Path string
+
+	// Var is a map of terraform variables to values.  The values
+	// are expanded using gotemplates.
+	Var map[string]string
 }
 
 // Setup defines the resources to set up and tear down around the

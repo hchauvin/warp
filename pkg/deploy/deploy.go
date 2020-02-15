@@ -11,6 +11,7 @@ import (
 	"github.com/hchauvin/warp/pkg/deploy/container"
 	"github.com/hchauvin/warp/pkg/deploy/helm"
 	"github.com/hchauvin/warp/pkg/deploy/kustomize"
+	"github.com/hchauvin/warp/pkg/deploy/terraform"
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/stacks/names"
@@ -18,6 +19,12 @@ import (
 
 // Exec executes the "deploy" steps.
 func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
+	if pipeline.Deploy.Terraform != nil {
+		if err := terraform.Exec(ctx, cfg, pipeline, name); err != nil {
+			return fmt.Errorf("deploy.terraform: %v", err)
+		}
+	}
+
 	var refs container.ImageRefs
 	if pipeline.Deploy.Container != nil {
 		var err error

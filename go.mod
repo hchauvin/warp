@@ -21,6 +21,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
+	github.com/otiai10/copy v1.0.2 // indirect
 	github.com/pelletier/go-toml v1.6.0
 	github.com/spf13/afero v1.2.2
 	github.com/stretchr/testify v1.4.0

@@ -34,6 +34,11 @@ type Config struct {
 	// cluster used for deployment.
 	Kubernetes *Kubernetes
 
+	// Terraform holds the (default) configuration for Terraform used
+	// for deployment, and the configuration for the remote Terraform
+	// state.
+	Terraform *Terraform
+
 	// Telemetry configures telemetry.
 	Telemetry Telemetry
 
@@ -77,10 +82,11 @@ const (
 	Ksync       = Tool("Ksync")
 	BrowserSync = Tool("BrowserSync")
 	Docker      = Tool("Docker")
+	TerraformCLI = Tool("Terraform")
 )
 
 // ToolNames gives all the required tools.
-var ToolNames = []Tool{Kustomize, Helm, KubeScore, Kubectl, Ksync, BrowserSync, Docker}
+var ToolNames = []Tool{Kustomize, Helm, KubeScore, Kubectl, Ksync, BrowserSync, Docker, TerraformCLI}
 
 // LogDomain gives the log domain for a tool.
 func (tool Tool) LogDomain() string {
@@ -101,6 +107,7 @@ var toolDefaultPaths = map[Tool]string{
 	Ksync:       "ksync",
 	BrowserSync: "browser-sync",
 	Docker:      "docker",
+	TerraformCLI: "terraform",
 }
 
 // Kubernetes holds the configuration for a Kubernetes
@@ -139,6 +146,11 @@ type Resource struct {
 	// Namespaced indicates whether the resource is namespaced or
 	// cluster-wide.
 	Namespaced bool
+}
+
+type Terraform struct {
+	Backend string
+	Var map[string]string
 }
 
 // Telemetry configures telemetry.  Telemetry is used to gather

@@ -17,7 +17,7 @@ import (
 	"text/template"
 )
 
-func K8sTemplateFuncs(cfg *config.Config, name names.Name, k8sClient *k8s.K8s) *k8sTemplateFuncs {
+func K8sTemplateFuncs(cfg *config.Config, name names.Name, k8sClient *k8s.K8s) TemplateFuncs {
 	return &k8sTemplateFuncs{
 		newTemplateFuncsCache(),
 		cfg,

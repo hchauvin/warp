@@ -12,7 +12,9 @@ import (
 	"github.com/hchauvin/warp/pkg/k8s"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/proc"
+	"github.com/hchauvin/warp/pkg/run/env"
 	"github.com/hchauvin/warp/pkg/stacks/names"
+	"github.com/hchauvin/warp/pkg/terraform"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -95,6 +97,28 @@ func ExpandResources(
 			images = append(images, image)
 		}
 		overlay["images"] = images
+	}
+	if len(k.SecretGenerator) > 0 {
+		secretGenerator := make([]map[string]interface{}, len(k.SecretGenerator))
+		tf := terraform.New(cfg)
+		trans := env.NewTransformer(
+			env.StackTemplateFuncs(cfg, name),
+			env.TerraformTemplateFuncs(cfg, tf))
+		for i, gen := range k.SecretGenerator {
+			literals := make([]string, len(gen.Literals))
+			for i, tpl := range gen.Literals {
+				lit, err := trans.Get(ctx, tpl)
+				if err != nil {
+					return "", err
+				}
+				literals[i] = lit
+			}
+			secretGenerator[i] = map[string]interface{}{
+				"name": gen.Name,
+				"literals": literals,
+			}
+		}
+		overlay["secretGenerator"] = secretGenerator
 	}
 
 	overlayYaml, err := yaml.Marshal(overlay)
