@@ -2,16 +2,17 @@ package terraform
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/hchauvin/warp/pkg/config"
 	"github.com/hchauvin/warp/pkg/pipelines"
-	"github.com/hchauvin/warp/pkg/proc"
 	"github.com/hchauvin/warp/pkg/run/env"
 	"github.com/hchauvin/warp/pkg/stacks/names"
+	"github.com/hchauvin/warp/pkg/terraform"
+	"github.com/otiai10/copy"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"github.com/otiai10/copy"
 	"strconv"
 	"strings"
 )
@@ -21,8 +22,22 @@ func Exec(
 	cfg *config.Config,
 	pipeline *pipelines.Pipeline,
 	name names.Name,
-) error {
-	return applyDestroy(ctx, cfg, pipeline, name, "apply")
+) (rootModulePath string, err error) {
+	rootModulePath, err = CreateRootModule(ctx, cfg, pipeline, name)
+	if err != nil {
+		return rootModulePath, err
+	}
+	tf, err := terraform.New(cfg, rootModulePath)
+	if err != nil {
+		return rootModulePath, err
+	}
+	if err := tf.Init(ctx); err != nil {
+		return rootModulePath, err
+	}
+	if err := tf.Apply(ctx, true, nil); err != nil {
+		return "", err
+	}
+	return rootModulePath, nil
 }
 
 func Destroy(
@@ -31,64 +46,91 @@ func Destroy(
 	pipeline *pipelines.Pipeline,
 	name names.Name,
 ) error {
-	return applyDestroy(ctx, cfg, pipeline, name, "destroy")
-}
-
-func applyDestroy(
-	ctx context.Context,
-	cfg *config.Config,
-	pipeline *pipelines.Pipeline,
-	name names.Name,
-	command string,
-) error {
-	terraformPath, err := cfg.ToolPath(config.TerraformCLI)
+	rootModulePath, err := CreateRootModule(ctx, cfg, pipeline, name)
 	if err != nil {
 		return err
 	}
-
-	finalTerraformConfigPath := filepath.Join(cfg.Path(cfg.OutputRoot), "terraform", name.String())
-	if err := os.RemoveAll(finalTerraformConfigPath); err != nil {
+	tf, err := terraform.New(cfg, rootModulePath)
+	if err != nil {
 		return err
+	}
+	return tf.Destroy(ctx, true, nil)
+}
+
+func CreateRootModule(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) (rootModulePath string, err error) {
+	finalRootModulePath := filepath.Join(cfg.Path(cfg.OutputRoot), "terraform", name.String())
+	if err := cleanUpRootModule(finalRootModulePath, false); err != nil {
+		return "", fmt.Errorf("cannot clean up terraform root module '%s': %v", finalRootModulePath, err)
 	}
 
 	terraformConfigPath := cfg.Path(pipeline.Deploy.Terraform.Path)
-	if err := copy.Copy(terraformConfigPath, finalTerraformConfigPath); err != nil {
-		return fmt.Errorf("cannot copy terraform config from '%s' to '%s': %v",
-			terraformConfigPath, finalTerraformConfigPath)
+	if err := copy.Copy(terraformConfigPath, finalRootModulePath); err != nil {
+		return "", fmt.Errorf("cannot copy terraform config from '%s' to '%s': %v",
+			terraformConfigPath, finalRootModulePath)
 	}
 
-	tfBackendFile, err := ioutil.TempFile(finalTerraformConfigPath, "backend_*.tf")
+	tfBackendFile, err := ioutil.TempFile(finalRootModulePath, "backend_*.tf")
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer tfBackendFile.Close()
 	back, err := backendConfig(cfg)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if _, err := tfBackendFile.WriteString(back); err != nil {
-		return fmt.Errorf("cannot write terraform backend config to %s: %v", tfBackendFile.Name(), err)
+		return "", fmt.Errorf("cannot write terraform backend config to %s: %v", tfBackendFile.Name(), err)
 	}
 	tfBackendFile.Close()
 
-	args := []string{command, "-auto-approve"}
-	trans := env.NewTransformer(env.StackTemplateFuncs(cfg, name))
-	for k, tpl := range pipeline.Deploy.Terraform.Var {
-		v, err := trans.Get(ctx, tpl)
-		if err != nil {
-			return fmt.Errorf("cannot expand template for variable '%s': %v", k, err)
+	tfvarsFile, err := ioutil.TempFile(finalRootModulePath, "*.auto.tfvars.json")
+	if err != nil {
+		return "", err
+	}
+	defer tfvarsFile.Close()
+	tfvars, err := expandVars(ctx, cfg, pipeline, name)
+	if err != nil {
+		return "", err
+	}
+	tfvarsJson, err := json.Marshal(tfvars)
+	if err != nil {
+		return "", err
+	}
+	if _, err := tfvarsFile.Write(tfvarsJson); err != nil {
+		return "", fmt.Errorf("cannot write terraform tfvars '%s': %v", tfvarsFile.Name(), err)
+	}
+	tfvarsFile.Close()
+
+	return finalRootModulePath, nil
+}
+
+func cleanUpRootModule(path string, removeDotTerraform bool) error {
+	if removeDotTerraform {
+		return os.RemoveAll(path)
+	}
+
+	if stat, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
 		}
-		args = append(args, "-var", fmt.Sprintf("%s=%s", k, v))
+		return err
+	} else if (!stat.IsDir()) {
+		return os.Remove(path)
 	}
 
-	args = append(args, finalTerraformConfigPath)
-
-	cmd := proc.GracefulCommandContext(ctx, terraformPath, args...)
-	cfg.Logger().Pipe(config.TerraformCLI.LogDomain(), cmd)
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("could not run terraform on '%s': %v", finalTerraformConfigPath, err)
+	fis, err := ioutil.ReadDir(path)
+	if err != nil {
+		return err
 	}
+	for _, fi := range fis {
+		if fi.Name() == ".terraform" {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(path, fi.Name())); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -103,10 +145,22 @@ func backendConfig(
 		b.WriteString("    ")
 		b.WriteString(k)
 		b.WriteString(" = ")
-		b.WriteRune('"')
 		b.WriteString(strconv.Quote(v))
-		b.WriteString("\"\n")
+		b.WriteRune('\n')
 	}
 	b.WriteString("  }\n}\n")
 	return b.String(), nil
+}
+
+func expandVars(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name) (vars map[string]interface{}, err error) {
+	vars = make(map[string]interface{}, len(pipeline.Deploy.Terraform.Var))
+	trans := env.NewTransformer(env.StackTemplateFuncs(cfg, name))
+	for k, tpl := range pipeline.Deploy.Terraform.Var {
+		v, err := trans.Get(ctx, tpl)
+		if err != nil {
+			return nil, fmt.Errorf("cannot expand template for variable '%s': %v", k, err)
+		}
+		vars[k] = v
+	}
+	return vars, nil
 }

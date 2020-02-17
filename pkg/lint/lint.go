@@ -10,6 +10,7 @@ import (
 	"github.com/hchauvin/warp/pkg/deploy/container"
 	"github.com/hchauvin/warp/pkg/deploy/helm"
 	"github.com/hchauvin/warp/pkg/deploy/kustomize"
+	"github.com/hchauvin/warp/pkg/deploy/terraform"
 	"github.com/hchauvin/warp/pkg/lint/kubescore"
 	"github.com/hchauvin/warp/pkg/pipelines"
 	"github.com/hchauvin/warp/pkg/stacks/names"
@@ -25,6 +26,15 @@ func Lint(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline)
 	}
 	if pipeline.Stack.Variant != "" {
 		name.ShortName += "-" + pipeline.Stack.Variant
+	}
+
+	var terraformRootModule string
+	if pipeline.Deploy.Terraform != nil {
+		var err error
+		terraformRootModule, err = terraform.CreateRootModule(ctx, cfg, pipeline, name)
+		if err != nil {
+			return fmt.Errorf("deploy.terraform: %v", err)
+		}
 	}
 
 	var refs container.ImageRefs
@@ -48,7 +58,7 @@ func Lint(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline)
 	}
 
 	if pipeline.Deploy.Kustomize != nil && !pipeline.Lint.DisableKustomizeKubeScore {
-		k8sResourcesPath, err := kustomize.ExpandResources(ctx, cfg, pipeline, name, refs)
+		k8sResourcesPath, err := kustomize.ExpandResources(ctx, cfg, pipeline, name, refs, terraformRootModule)
 		if err != nil {
 			return fmt.Errorf("deploy.kustomize: %v", err)
 		}

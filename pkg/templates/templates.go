@@ -4,6 +4,7 @@
 package templates
 
 import (
+	"io/ioutil"
 	"runtime"
 	ttemplate "text/template"
 )
@@ -24,4 +25,11 @@ func GenericFuncMap() map[string]interface{} {
 
 var genericMap = map[string]interface{}{
 	"os": func() string { return runtime.GOOS },
+	"readTextFile": func(path string) (string, error) {
+		b, err := ioutil.ReadFile(path)
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
+	},
 }

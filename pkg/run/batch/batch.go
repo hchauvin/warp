@@ -344,7 +344,7 @@ func (runner *runner) execCommand(
 				if err != nil {
 					return err
 				}
-				if err := deploy.Exec(gctx, cfg, pipeline.pipeline, stack.name, k8sClient); err != nil {
+				if _, err := deploy.Exec(gctx, cfg, pipeline.pipeline, stack.name, k8sClient); err != nil {
 					return fmt.Errorf("deploy failed for stack %s: %v", stack.name, err)
 				}
 				close(stack.deployedc)

@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/hchauvin/warp/pkg/terraform"
 	"go.uber.org/atomic"
 
 	// Registers the local backend
@@ -102,7 +103,8 @@ func Exec(
 		}
 	}
 
-	if err := deploy.Exec(ctx, cfg, pipeline, execCfg.Name, k8sClient); err != nil {
+	deploymentInfo, err := deploy.Exec(ctx, cfg, pipeline, execCfg.Name, k8sClient)
+	if err != nil {
 		return fmt.Errorf("deploy step failed: %v", err)
 	}
 
@@ -163,7 +165,16 @@ func Exec(
 		}
 
 		envVars := make([]string, len(setup.Env))
-		trans := env.NewTransformer(env.K8sTemplateFuncs(cfg, execCfg.Name, k8sClient))
+		funcs := []env.TemplateFuncs{env.StackTemplateFuncs(cfg, execCfg.Name)}
+		funcs = append(funcs, env.K8sTemplateFuncs(cfg, execCfg.Name, k8sClient))
+		if deploymentInfo.TerraformRootModulePath != "" {
+			tf, err := terraform.New(cfg, deploymentInfo.TerraformRootModulePath)
+			if err != nil {
+				return err
+			}
+			funcs = append(funcs, env.TerraformTemplateFuncs(cfg, tf))
+		}
+		trans := env.NewTransformer(funcs...)
 		g, gctx := errgroup.WithContext(ctx)
 		for i, envTpl := range setup.Env {
 			i, envTpl := i, envTpl

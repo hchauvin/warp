@@ -17,13 +17,13 @@ func TerraformTemplateFuncs(cfg *config.Config, tf *terraform.Terraform) Templat
 
 type terraformTemplateFuncs struct {
 	tf *terraform.Terraform
-	outputs map[string]string
+	outputs map[string]terraform.Output
 	outputsMut sync.Mutex
 }
 
 func (funcs *terraformTemplateFuncs) TxtFuncMap(ctx context.Context) template.FuncMap {
 	return map[string]interface{}{
-		"terraformOutput": func(name string) (string, error) {
+		"terraformOutputScalar": func(name string) (string, error) {
 			funcs.outputsMut.Lock()
 			defer funcs.outputsMut.Unlock()
 			if funcs.outputs == nil {
@@ -37,7 +37,7 @@ func (funcs *terraformTemplateFuncs) TxtFuncMap(ctx context.Context) template.Fu
 			if !ok {
 				return "", fmt.Errorf("output '%s' not found", name)
 			}
-			return value, nil
+			return fmt.Sprintf("%s", value.Value), nil
 		},
 	}
 }

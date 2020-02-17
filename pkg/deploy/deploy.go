@@ -17,34 +17,45 @@ import (
 	"github.com/hchauvin/warp/pkg/stacks/names"
 )
 
+type Info struct {
+	TerraformRootModulePath string
+	ImageRefs container.ImageRefs
+}
+
 // Exec executes the "deploy" steps.
-func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
+func Exec(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) (*Info, error) {
+	var terraformRootModulePath string
 	if pipeline.Deploy.Terraform != nil {
-		if err := terraform.Exec(ctx, cfg, pipeline, name); err != nil {
-			return fmt.Errorf("deploy.terraform: %v", err)
+		var err error
+		terraformRootModulePath, err = terraform.Exec(ctx, cfg, pipeline, name)
+		if err != nil {
+			return nil, fmt.Errorf("deploy.terraform: %v", err)
 		}
 	}
 
-	var refs container.ImageRefs
+	var imageRefs container.ImageRefs
 	if pipeline.Deploy.Container != nil {
 		var err error
-		refs, err = container.Exec(ctx, cfg, pipeline, name)
+		imageRefs, err = container.Exec(ctx, cfg, pipeline, name)
 		if err != nil {
-			return fmt.Errorf("deploy.container: %v", err)
+			return nil, fmt.Errorf("deploy.container: %v", err)
 		}
 	}
 
 	if pipeline.Deploy.Helm != nil {
-		if err := helm.Exec(ctx, cfg, pipeline, name, refs, k8sClient); err != nil {
-			return fmt.Errorf("deploy.helm: %v", err)
+		if err := helm.Exec(ctx, cfg, pipeline, name, imageRefs, k8sClient); err != nil {
+			return nil, fmt.Errorf("deploy.helm: %v", err)
 		}
 	}
 
 	if pipeline.Deploy.Kustomize != nil {
-		if err := kustomize.Exec(ctx, cfg, pipeline, name, refs, k8sClient); err != nil {
-			return fmt.Errorf("deploy.kustomize: %v", err)
+		if err := kustomize.Exec(ctx, cfg, pipeline, name, imageRefs, terraformRootModulePath, k8sClient); err != nil {
+			return nil, fmt.Errorf("deploy.kustomize: %v", err)
 		}
 	}
 
-	return nil
+	return &Info{
+		TerraformRootModulePath: terraformRootModulePath,
+		ImageRefs: imageRefs,
+	}, nil
 }

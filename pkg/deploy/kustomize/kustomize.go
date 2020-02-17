@@ -33,9 +33,10 @@ func Exec(
 	pipeline *pipelines.Pipeline,
 	name names.Name,
 	imageRefs container.ImageRefs,
+	terraformConfigPath string,
 	k8sClient *k8s.K8s,
 ) error {
-	k8sResourcesPath, err := ExpandResources(ctx, cfg, pipeline, name, imageRefs)
+	k8sResourcesPath, err := ExpandResources(ctx, cfg, pipeline, name, imageRefs, terraformConfigPath)
 	if err != nil {
 		return err
 	}
@@ -52,6 +53,7 @@ func ExpandResources(
 	pipeline *pipelines.Pipeline,
 	name names.Name,
 	imageRefs container.ImageRefs,
+	terraformConfigPath string,
 ) (k8sResourcesPath string, err error) {
 	dnsName := name.DNSName()
 	k := pipeline.Deploy.Kustomize
@@ -100,10 +102,15 @@ func ExpandResources(
 	}
 	if len(k.SecretGenerator) > 0 {
 		secretGenerator := make([]map[string]interface{}, len(k.SecretGenerator))
-		tf := terraform.New(cfg)
-		trans := env.NewTransformer(
-			env.StackTemplateFuncs(cfg, name),
-			env.TerraformTemplateFuncs(cfg, tf))
+		funcs := []env.TemplateFuncs{env.StackTemplateFuncs(cfg, name)}
+		if terraformConfigPath != "" {
+			tf, err := terraform.New(cfg, terraformConfigPath)
+			if err != nil {
+				return "", err
+			}
+			funcs = append(funcs, env.TerraformTemplateFuncs(cfg, tf))
+		}
+		trans := env.NewTransformer(funcs...)
 		for i, gen := range k.SecretGenerator {
 			literals := make([]string, len(gen.Literals))
 			for i, tpl := range gen.Literals {

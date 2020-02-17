@@ -45,7 +45,7 @@ func Lint(ctx context.Context, lintCfg *LintCfg) error {
 
 	pipeline, err := pipelines.Read(cfg, lintCfg.PipelinePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read pipeline definition '%s': %v", lintCfg.PipelinePath, err)
 	}
 
 	if err := pipeline.Expand(cfg); err != nil {
@@ -91,7 +91,7 @@ func doHold(holdCfg *HoldConfig, exec execStacks) error {
 
 	pipeline, err := pipelines.Read(cfg, holdCfg.PipelinePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read pipeline definition '%s': %v", holdCfg.PipelinePath, err)
 	}
 
 	if err := pipeline.Expand(cfg); err != nil {
@@ -165,7 +165,10 @@ type DeployCfg struct {
 
 // Deploy implements the "deploy" command.
 func Deploy(ctx context.Context, deployCfg *DeployCfg) error {
-	return doDeploy(ctx, deployCfg, deploy.Exec)
+	return doDeploy(ctx, deployCfg, func(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error {
+		_, err := deploy.Exec(ctx, cfg, pipeline, name, k8sClient)
+		return err
+	})
 }
 
 type execDeploy func(ctx context.Context, cfg *config.Config, pipeline *pipelines.Pipeline, name names.Name, k8sClient *k8s.K8s) error
@@ -178,7 +181,7 @@ func doDeploy(ctx context.Context, deployCfg *DeployCfg, exec execDeploy) error 
 
 	pipeline, err := pipelines.Read(cfg, deployCfg.PipelinePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read pipeline definition '%s': %v", deployCfg.PipelinePath, err)
 	}
 
 	if pipeline.Stack.Name == "" {

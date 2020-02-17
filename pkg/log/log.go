@@ -75,6 +75,18 @@ func (l *Logger) Pipe(domain string, cmd *exec.Cmd) {
 	l.PipeReader(domain, stderr)
 }
 
+func (l *Logger) PipeStderr(domain string, cmd *exec.Cmd) {
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		// This means that Pipe was invoked on a cmd that has either
+		// its os.Stdout already set, or has already been started.
+		// Here, that is a logic error.
+		panic(fmt.Errorf("could not pipe command stderr: %v", err))
+	}
+
+	l.PipeReader(domain, stderr)
+}
+
 // PipeReader logs the lines scanned from a reader.  Each line
 // is logged as an info message for the given log domain.
 //
