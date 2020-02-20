@@ -67,7 +67,7 @@ It doesn't get simpler than that. 🏖
 
 Because pipelines can inherit the steps of other, _base_ pipelines, it is possible to
 have an overlay organization that would mimic how project are organized with Kustomize.
-For instance, you could have a `base` folder container a base `pipeline.yml` and `kustomization.yml`,
+For instance, you could have a `base` folder containing a base `pipeline.yml` and `kustomization.yml`,
 a `dev` folder containing configurations for a "dev" stack with file synchronization and the ability
 to manage multiple stacks, and a `prod` folder containing the configuration for the production stack.
 
