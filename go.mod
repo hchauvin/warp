@@ -27,7 +27,7 @@ require (
 	github.com/urfave/cli/v2 v2.1.1
 	go.mongodb.org/mongo-driver v1.3.0
 	go.uber.org/atomic v1.5.1
-	golang.org/x/crypto v0.0.0-20200208060501-ecb85df21340
+	golang.org/x/crypto 78000ba7a073
 	golang.org/x/oauth2 v0.0.0-20191122200657-5d9234df094c // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
