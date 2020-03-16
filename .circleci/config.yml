@@ -316,19 +316,19 @@ workflows:
           filters:
             tags:
               only: /^v.*/
-      - test-darwin:
-          filters:
-            tags:
-              only: /^v.*/
-      - test-windows:
-          filters:
-            tags:
-              only: /^v.*/
+#      - test-darwin:
+#          filters:
+#            tags:
+#              only: /^v.*/
+#      - test-windows:
+#          filters:
+#            tags:
+#              only: /^v.*/
       - release:
           requires:
             - test-linux
-            - test-darwin
-            - test-windows
+#            - test-darwin
+#            - test-windows
           filters:
             branches:
               ignore: /.*/
