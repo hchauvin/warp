@@ -167,7 +167,7 @@ func (ports *Ports) PodPortForward(namespace, name string, localPortSpec, expose
 
 	fw, err := portforward.NewOnAddresses(
 		dialer,
-		[]string{"localhost"},
+		[]string{"0.0.0.0"},
 		[]string{fmt.Sprintf("%d:%d", localPortSpec, exposedTCPPort)},
 		stopc, readyc, ioutil.Discard, os.Stderr)
 	if err != nil {
