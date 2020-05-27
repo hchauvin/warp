@@ -296,18 +296,18 @@ jobs:
 workflows:
   main:
     jobs:
-      - test-linux:
-          filters:
-            tags:
-              only: /^v.*/
-      - test-darwin:
-          filters:
-            tags:
-              only: /^v.*/
-      - test-windows:
-          filters:
-            tags:
-              only: /^v.*/
+#      - test-linux:
+#          filters:
+#            tags:
+#              only: /^v.*/
+#      - test-darwin:
+#          filters:
+#            tags:
+#              only: /^v.*/
+#      - test-windows:
+#          filters:
+#            tags:
+#              only: /^v.*/
       - release:
           #requires:
           #  - test-linux
