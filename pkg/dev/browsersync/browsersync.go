@@ -53,7 +53,7 @@ func Exec(
 			args := []string{
 				"start",
 				"--proxy",
-				fmt.Sprintf("127.0.0.1:%d", localPort),
+				fmt.Sprintf("0.0.0.0:%d", localPort),
 				"--port",
 				strconv.Itoa(spec.LocalPort),
 			}
