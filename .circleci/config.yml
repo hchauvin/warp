@@ -312,10 +312,10 @@ jobs:
 workflows:
   main:
     jobs:
-      - test-linux:
-          filters:
-            tags:
-              only: /^v.*/
+#      - test-linux:
+#          filters:
+#            tags:
+#              only: /^v.*/
 #      - test-darwin:
 #          filters:
 #            tags:
@@ -325,8 +325,8 @@ workflows:
 #            tags:
 #              only: /^v.*/
       - release:
-          requires:
-            - test-linux
+#          requires:
+#            - test-linux
 #            - test-darwin
 #            - test-windows
           filters:
