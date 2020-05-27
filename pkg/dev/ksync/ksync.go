@@ -125,7 +125,7 @@ func Exec(ctx context.Context, cfg *config.Config, ksync []pipelines.Ksync, name
 		// syncthing, daemonized by ksync watch, sometimes is not properly
 		// killed.
 		if err := proc.KillPort(8384); err != nil {
-			return err
+			cfg.Logger().Error(logDomain, "cannot kill syncthing port: %v", err)
 		}
 
 		cmd := proc.GracefulCommandContext(ctx, ksyncPath, "watch")
