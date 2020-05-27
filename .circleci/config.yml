@@ -309,10 +309,10 @@ workflows:
             tags:
               only: /^v.*/
       - release:
-          requires:
-            - test-linux
-            - test-darwin
-            - test-windows
+          #requires:
+          #  - test-linux
+          #  - test-darwin
+          #  - test-windows
           filters:
             branches:
               ignore: /.*/
