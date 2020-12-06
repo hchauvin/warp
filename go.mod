@@ -26,7 +26,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli/v2 v2.2.0
 	go.mongodb.org/mongo-driver v1.3.1
-	go.uber.org/atomic v1.5.1
+	go.uber.org/atomic v1.6.0
 	golang.org/x/crypto 78000ba7a073
 	golang.org/x/oauth2 v0.0.0-20191122200657-5d9234df094c // indirect
 	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
